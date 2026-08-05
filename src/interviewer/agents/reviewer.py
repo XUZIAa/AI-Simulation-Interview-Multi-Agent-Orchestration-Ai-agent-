@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, Field
 
 from ..core.types import AnnotationKind, CompanyTier, GapSeverity, ScoreDimension
 from ..domain.company import score_weights
@@ -23,6 +23,7 @@ from ..domain.review import (
 )
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_ANALYST
 from .base import Agent, clamp, trim
 
@@ -31,14 +32,14 @@ logger = logging.getLogger(__name__)
 ProgressHook = Callable[[str, int, str], None]
 
 
-class _DimRaw(BaseModel):
-    dimension: str = ""
+class _DimRaw(LooseModel):
+    dimension: str = Field(default="", validation_alias=AliasChoices("dimension", "name"))
     score: float = 0.0
     reason: str = ""
     evidence: list[str] = Field(default_factory=list)
 
 
-class _ScoreRaw(BaseModel):
+class _ScoreRaw(LooseModel):
     overall_score: float = 0.0
     headline: str = ""
     summary: str = ""
@@ -48,32 +49,34 @@ class _ScoreRaw(BaseModel):
     next_actions: list[str] = Field(default_factory=list)
 
 
-class _AnnotationRaw(BaseModel):
+class _AnnotationRaw(LooseModel):
     turn_index: int = 0
     kind: str = "weakness"
-    quote: str = ""
+    quote: str = Field(default="", validation_alias=AliasChoices("quote", "name", "text"))
     comment: str = ""
 
 
-class _AnnotationsRaw(BaseModel):
+class _AnnotationsRaw(LooseModel):
     annotations: list[_AnnotationRaw] = Field(default_factory=list)
 
 
-class _RewriteRaw(BaseModel):
+class _RewriteRaw(LooseModel):
     question_index: int = 0
-    question: str = ""
+    question: str = Field(default="", validation_alias=AliasChoices("question", "name"))
     original: str = ""
     rewritten: str = ""
     why_better: list[str] = Field(default_factory=list)
     used_assets: list[str] = Field(default_factory=list)
 
 
-class _RewritesRaw(BaseModel):
+class _RewritesRaw(LooseModel):
     rewrites: list[_RewriteRaw] = Field(default_factory=list)
 
 
-class _MistakeRaw(BaseModel):
-    knowledge_point: str = ""
+class _MistakeRaw(LooseModel):
+    knowledge_point: str = Field(
+        default="", validation_alias=AliasChoices("knowledge_point", "name", "point")
+    )
     topic: str = ""
     question: str = ""
     candidate_answer: str = ""
@@ -82,18 +85,18 @@ class _MistakeRaw(BaseModel):
     review_hint: str = ""
 
 
-class _MistakesRaw(BaseModel):
+class _MistakesRaw(LooseModel):
     mistakes: list[_MistakeRaw] = Field(default_factory=list)
 
 
-class _DrillRaw(BaseModel):
-    action: str = ""
+class _DrillRaw(LooseModel):
+    action: str = Field(default="", validation_alias=AliasChoices("action", "name", "task"))
     why: str = ""
     time_cost: str = ""
 
 
-class _PlanRaw(BaseModel):
-    focus_area: str = ""
+class _PlanRaw(LooseModel):
+    focus_area: str = Field(default="", validation_alias=AliasChoices("focus_area", "name", "area", "focus"))
     diagnosis: str = ""
     expected_gain: str = ""
     drills: list[_DrillRaw] = Field(default_factory=list)
@@ -101,7 +104,7 @@ class _PlanRaw(BaseModel):
     next_mock_setup: str = ""
 
 
-class _PlansRaw(BaseModel):
+class _PlansRaw(LooseModel):
     plans: list[_PlanRaw] = Field(default_factory=list)
 
 

@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, Field
 
 from ..core.providers_catalog import model_traits
 from ..core.types import MAX_DEPTH, CompanyTier, JobLevel, QuestionSource
@@ -13,13 +13,14 @@ from ..domain.question_bank import BankQuestion, QuestionBank
 from ..domain.resume import GapReport, JobDescription, ResumeProfile
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_ANALYST
 from .base import Agent, trim
 
 logger = logging.getLogger(__name__)
 
 
-class _JobSynthRaw(BaseModel):
+class _JobSynthRaw(LooseModel):
     company: str = ""
     title: str = ""
     must_have: list[str] = Field(default_factory=list)
@@ -83,8 +84,9 @@ class JobSynthesizer(Agent):
         )
 
 
-class _BankItemRaw(BaseModel):
-    text: str = ""
+class _BankItemRaw(LooseModel):
+    # 纯字符串元素会被包装成 {"name": ...}，主字段要认得 name
+    text: str = Field(default="", validation_alias=AliasChoices("text", "name", "question", "content"))
     skill: str = ""
     domain: str = ""
     depth: int = 1
@@ -96,7 +98,7 @@ class _BankItemRaw(BaseModel):
     must_ask: bool = False
 
 
-class _BankRaw(BaseModel):
+class _BankRaw(LooseModel):
     questions: list[_BankItemRaw] = Field(default_factory=list)
 
 

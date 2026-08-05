@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, ClassVar
+from typing import ClassVar
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, Field
 
 from ..core.types import GapSeverity, InterviewPhase
 from ..domain.resume import (
@@ -16,7 +16,7 @@ from ..domain.resume import (
 )
 from ..llm import prompts
 from ..llm.base import system, user
-from ..llm.coerce import as_number, as_object_list, as_text, as_text_list
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_ANALYST
 from .base import Agent
 
@@ -31,24 +31,21 @@ _PHASE_KEYS: dict[str, InterviewPhase] = {
 }
 
 
-class _ProjectRaw(BaseModel):
-    """项目条目的宽松版本。name 在领域模型里是必填，这里先收进来再过滤。"""
+_SKILL_ALIAS = AliasChoices("skill", "requirement", "name", "item", "point", "keyword")
 
-    name: str = ""
+
+class _ProjectRaw(LooseModel):
+    """项目条目。name 在领域模型里必填，这里先收进来再过滤掉无名的。"""
+
+    name: str = Field(default="", validation_alias=AliasChoices("name", "title", "project"))
     role: str = ""
-    stack: list[str] = Field(default_factory=list)
-    impact: str = ""
-    summary: str = ""
-
-    @field_validator("name", "role", "impact", "summary", mode="before")
-    @classmethod
-    def _text(cls, value: Any) -> str:
-        return as_text(value)
-
-    @field_validator("stack", mode="before")
-    @classmethod
-    def _list(cls, value: Any) -> list[str]:
-        return as_text_list(value)
+    stack: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("stack", "tech_stack", "technologies")
+    )
+    impact: str = Field(default="", validation_alias=AliasChoices("impact", "result", "outcome"))
+    summary: str = Field(
+        default="", validation_alias=AliasChoices("summary", "description", "desc", "detail")
+    )
 
     def to_domain(self) -> ProjectHighlight | None:
         name = self.name.strip()
@@ -63,61 +60,79 @@ class _ProjectRaw(BaseModel):
         )
 
 
-class _ResumeRaw(BaseModel):
-    candidate_name: str = ""
-    years_of_experience: float = 0.0
-    current_title: str = ""
+class _ResumeRaw(LooseModel):
+    candidate_name: str = Field(
+        default="", validation_alias=AliasChoices("candidate_name", "name", "candidate")
+    )
+    years_of_experience: float = Field(
+        default=0.0, validation_alias=AliasChoices("years_of_experience", "years", "experience_years")
+    )
+    current_title: str = Field(
+        default="", validation_alias=AliasChoices("current_title", "title", "position")
+    )
     education: str = ""
     skills: list[str] = Field(default_factory=list)
-    self_claims: list[str] = Field(default_factory=list)
+    self_claims: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("self_claims", "claims", "highlights")
+    )
     projects: list[_ProjectRaw] = Field(default_factory=list)
 
-    @field_validator("candidate_name", "current_title", "education", mode="before")
-    @classmethod
-    def _text(cls, value: Any) -> str:
-        return as_text(value)
 
-    @field_validator("skills", "self_claims", mode="before")
-    @classmethod
-    def _list(cls, value: Any) -> list[str]:
-        return as_text_list(value)
-
-    @field_validator("years_of_experience", mode="before")
-    @classmethod
-    def _number(cls, value: Any) -> float:
-        return as_number(value)
-
-    @field_validator("projects", mode="before")
-    @classmethod
-    def _objects(cls, value: Any) -> list[dict[str, Any]]:
-        return as_object_list(value)
-
-
-class _JobRaw(BaseModel):
+class _JobRaw(LooseModel):
     company: str = ""
     title: str = ""
-    must_have: list[str] = Field(default_factory=list)
-    nice_to_have: list[str] = Field(default_factory=list)
-    responsibilities: list[str] = Field(default_factory=list)
+    must_have: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("must_have", "requirements", "required")
+    )
+    nice_to_have: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("nice_to_have", "preferred", "bonus")
+    )
+    responsibilities: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("responsibilities", "duties")
+    )
 
 
-class _GapRawItem(BaseModel):
-    skill: str = ""
+class _MatchRaw(LooseModel):
+    """已匹配技能。模型常把 skill 写成 requirement，键名要都认。"""
+
+    skill: str = Field(default="", validation_alias=_SKILL_ALIAS)
+    evidence: str = Field(default="", validation_alias=AliasChoices("evidence", "proof", "reason"))
+    strength: int = 3
+
+    def to_domain(self) -> SkillMatch | None:
+        skill = self.skill.strip()
+        if not skill:
+            return None
+        return SkillMatch(skill=skill, evidence=self.evidence, strength=max(1, min(5, self.strength)))
+
+
+class _GapRawItem(LooseModel):
+    skill: str = Field(default="", validation_alias=_SKILL_ALIAS)
     severity: str = "major"
-    jd_requirement: str = ""
-    why_gap: str = ""
-    bridge_asset: str = ""
-    talking_script: str = ""
-    study_hint: str = ""
+    jd_requirement: str = Field(
+        default="", validation_alias=AliasChoices("jd_requirement", "requirement", "jd")
+    )
+    why_gap: str = Field(default="", validation_alias=AliasChoices("why_gap", "reason", "why"))
+    bridge_asset: str = Field(
+        default="", validation_alias=AliasChoices("bridge_asset", "bridge", "asset")
+    )
+    talking_script: str = Field(
+        default="", validation_alias=AliasChoices("talking_script", "script", "talking_point")
+    )
+    study_hint: str = Field(default="", validation_alias=AliasChoices("study_hint", "hint", "study"))
 
 
-class _GapRaw(BaseModel):
-    match_score: int = 0
-    verdict: str = ""
-    matches: list[SkillMatch] = Field(default_factory=list)
+class _GapRaw(LooseModel):
+    match_score: int = Field(default=0, validation_alias=AliasChoices("match_score", "score"))
+    verdict: str = Field(default="", validation_alias=AliasChoices("verdict", "conclusion", "summary"))
+    matches: list[_MatchRaw] = Field(default_factory=list)
     gaps: list[_GapRawItem] = Field(default_factory=list)
-    predicted_questions: list[str] = Field(default_factory=list)
-    focus_skills: list[str] = Field(default_factory=list)
+    predicted_questions: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("predicted_questions", "questions")
+    )
+    focus_skills: list[str] = Field(
+        default_factory=list, validation_alias=AliasChoices("focus_skills", "focus")
+    )
     phase_emphasis: dict[str, int] = Field(default_factory=dict)
 
 
@@ -190,13 +205,14 @@ class ResumeAgent(Agent):
             for key, value in parsed.phase_emphasis.items()
             if key in _PHASE_KEYS
         }
+        matches = [m for m in (raw.to_domain() for raw in parsed.matches) if m][:20]
         focus = _unique(parsed.focus_skills)[:12]
         if not focus:
-            focus = _unique([g.skill for g in gaps] + [m.skill for m in parsed.matches])[:10]
+            focus = _unique([g.skill for g in gaps] + [m.skill for m in matches])[:10]
         return GapReport(
             match_score=max(0, min(100, parsed.match_score)),
             verdict=parsed.verdict.strip(),
-            matches=[m for m in parsed.matches if m.skill.strip()][:20],
+            matches=matches,
             gaps=sorted(gaps, key=lambda g: _SEVERITY_ORDER[g.severity])[:12],
             predicted_questions=[q.strip() for q in parsed.predicted_questions if q.strip()][:10],
             focus_skills=focus,

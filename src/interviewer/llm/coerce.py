@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+import types
+from typing import Any, Union, get_args, get_origin
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 
@@ -88,3 +91,66 @@ def as_object_list(value: Any) -> list[dict[str, Any]]:
                     out.append({"name": text})
         return out
     return []
+
+
+class LooseModel(BaseModel):
+    """接受模型输出形态差异的 schema 基类。
+
+    LLM 对同一字段可能给字符串、对象或对象列表，键名也常换
+    （skill 写成 requirement）。子类只声明字段类型即可，
+    这里按注解自动归一化；键名差异用 Field(validation_alias=...) 兼容。
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        for name, field in cls.model_fields.items():
+            keys = [name, *_alias_keys(field)]
+            key = next((k for k in keys if k in out), None)
+            if key is None:
+                continue
+            out[key] = _coerce_value(field.annotation, out[key])
+        return out
+
+
+def _alias_keys(field: Any) -> list[str]:
+    alias = getattr(field, "validation_alias", None)
+    if alias is None:
+        return []
+    if isinstance(alias, str):
+        return [alias]
+    choices = getattr(alias, "choices", None)
+    return [c for c in choices if isinstance(c, str)] if choices else []
+
+
+def _coerce_value(annotation: Any, value: Any) -> Any:
+    origin = get_origin(annotation)
+    if origin in (types.UnionType, Union):
+        args = get_args(annotation)
+        # 可选字段的 null 必须保持原样：把它变成 0 会被当成真选了 id=0
+        if value is None and type(None) in args:
+            return None
+        inner = [a for a in args if a is not type(None)]
+        return _coerce_value(inner[0], value) if len(inner) == 1 else value
+    if annotation is bool:
+        return value
+    if annotation is str:
+        return as_text(value)
+    if annotation is int:
+        return int(as_number(value))
+    if annotation is float:
+        return as_number(value)
+    if origin in (list, tuple):
+        args = get_args(annotation)
+        inner = args[0] if args else None
+        if inner is str:
+            return as_text_list(value)
+        if isinstance(inner, type) and issubclass(inner, BaseModel):
+            return as_object_list(value)
+        return value
+    return value

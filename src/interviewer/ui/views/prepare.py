@@ -642,5 +642,6 @@ class PrepareView(QWidget):
 
     def _launch_failed(self, exc: Exception) -> None:
         self._start_btn.setEnabled(True)
-        self._launch_status.setText("准备失败，请重试")
-        self._nav.toast(getattr(exc, "user_message", str(exc)), kind="error")
+        reason = getattr(exc, "user_message", "") or str(exc) or exc.__class__.__name__
+        self._set_status(self._launch_status, reason, error=True)
+        self._nav.toast(reason, kind="error")

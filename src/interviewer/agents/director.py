@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from ..core.errors import ProviderResponseError
 from ..core.types import ScoreDimension, TurnIntent
@@ -17,13 +17,14 @@ from ..domain.turn_plan import (
 )
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_DIRECTOR
 from .base import Agent, clamp, trim
 
 logger = logging.getLogger(__name__)
 
 
-class _DirectorRaw(BaseModel):
+class _DirectorRaw(LooseModel):
     intent: str = ""
     brief: str = ""
     target_skill: str = ""

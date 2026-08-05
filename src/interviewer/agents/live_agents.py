@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from ..core.types import StarElement
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_ASSIST, ROLE_DIRECTOR
 from .base import Agent, clamp, trim
 
@@ -26,7 +27,7 @@ class StarVerdict(BaseModel):
     probe_hint: str = ""
 
 
-class _StarRaw(BaseModel):
+class _StarRaw(LooseModel):
     present: list[str] = Field(default_factory=list)
     weakest: str | None = None
     probe_hint: str = ""
@@ -85,7 +86,7 @@ class StarAnalyst(Agent):
 # ---------------------------------------------------------------------------
 
 
-class CopilotHintPayload(BaseModel):
+class CopilotHintPayload(LooseModel):
     keywords: list[str] = Field(default_factory=list)
     outline: list[str] = Field(default_factory=list)
     caution: str = ""
@@ -145,7 +146,7 @@ class Copilot(Agent):
 # ---------------------------------------------------------------------------
 
 
-class CodeProbe(BaseModel):
+class CodeProbe(LooseModel):
     verdict: str = ""
     complexity: str = ""
     probe: str = ""

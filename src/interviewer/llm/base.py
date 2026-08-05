@@ -11,7 +11,7 @@ from typing import Any, Literal, TypeVar
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from ..core.errors import ProviderError, ProviderResponseError
+from ..core.errors import ConfigError, ProviderError, ProviderResponseError
 from ..core.providers_catalog import model_traits
 
 logger = logging.getLogger(__name__)
@@ -227,8 +227,18 @@ class ChatClient:
         retries: int = 1,
     ) -> T:
         """要求模型按 schema 输出。解析失败会带着错误信息重问一次。"""
+        traits = model_traits(self.model)
+        if traits.reasoning:
+            # 抬配额治不好：思维链和正文共享额度，题库这种长输出怎么给都不够，
+            # 且思考模式下 JSON 常落进思维链字段。本项目全是结构化输出，直接挡住并指路。
+            raise ConfigError(
+                user_message=(
+                    f"模型「{self.model}」是推理模型，无法稳定输出结构化 JSON。"
+                    "请到「设置 → 角色模型绑定」换成非推理模型，例如 deepseek-chat。"
+                )
+            )
         convo = list(messages)
-        if not model_traits(self.model).json_object:
+        if not traits.json_object:
             # 没有 response_format 强约束时，用提示词把格式要求兜住
             convo.append(user("只输出一个合法 JSON 对象，不要任何解释文字，不要代码围栏。"))
         last_error: Exception | None = None

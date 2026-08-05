@@ -11,6 +11,7 @@ from ..core.types import DriftKind
 from ..domain.persona import PersonaContract
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import LooseModel
 from ..llm.router import ROLE_GUARD
 from .base import Agent, trim
 
@@ -67,7 +68,7 @@ class GuardVerdict(BaseModel):
         return self.kind is not DriftKind.NONE
 
 
-class _GuardRaw(BaseModel):
+class _GuardRaw(LooseModel):
     kind: str = "none"
     excerpt: str = ""
     reason: str = ""

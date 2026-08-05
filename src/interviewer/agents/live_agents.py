@@ -107,7 +107,7 @@ class Copilot(Agent):
         question: str,
         partial_answer: str,
         resume_digest: str,
-        timeout_ms: int = 5000,
+        timeout_ms: int = 9000,
     ) -> CopilotHintPayload:
         if not question.strip():
             return CopilotHintPayload()
@@ -131,8 +131,12 @@ class Copilot(Agent):
                 ),
                 timeout=timeout_ms / 1000,
             )
-        except Exception:
-            logger.info("提词器未在预算内返回", exc_info=True)
+        except TimeoutError:
+            logger.warning("提词器超时（%d ms 内未返回）", timeout_ms)
+            return CopilotHintPayload()
+        except Exception as exc:
+            # 近线失败不打断面试，但原因必须留痕，否则用户只看到「没能给出建议」
+            logger.warning("提词器调用失败: %s", getattr(exc, "user_message", "") or exc)
             return CopilotHintPayload()
         return CopilotHintPayload(
             keywords=[trim(k, 12) for k in raw.keywords if k.strip()][:7],

@@ -34,7 +34,8 @@ from ..core.types import InterviewPhase, ScoreDimension, SessionStatus, Speaker,
 from ..data.repositories.session_repo import SessionRepository
 from ..domain.interview import InterviewState
 from ..domain.turn_plan import DirectorDecision, TurnPlan
-from ..llm.router import LLMRouter
+from ..llm.base import user as llm_user
+from ..llm.router import ROLE_ASSIST, ROLE_DIRECTOR, ROLE_GUARD, LLMRouter
 from ..realtime.client import RealtimeClient
 from ..realtime.recorder import SessionRecorder
 from . import anchor, policy
@@ -148,9 +149,23 @@ class InterviewEngine:
         self._advance_task = asyncio.create_task(self._advance_loop(), name="engine-advance")
         self._tick_task = asyncio.create_task(self._tick_loop(), name="engine-tick")
 
+        # 与开场语音并行预热文本模型：首次调用要建 TLS，
+        # 否则这半秒会白算在第一轮导演决策的等待里
+        self._spawn(self._warm_models())
+
         self._bus.emit(PhaseChanged(phase=state.phase, reason="面试开始"))
         await self._client.send_directive(anchor.opening_directive(state.persona))
         logger.info("面试开始 session=%s persona=%s", state.session_id, state.persona.name)
+
+    async def _warm_models(self) -> None:
+        async def ping(role: str) -> None:
+            with contextlib.suppress(Exception):
+                await self._router.client(role).complete(
+                    [llm_user("hi")], max_tokens=1, temperature=0.0
+                )
+
+        await asyncio.gather(*(ping(role) for role in (ROLE_DIRECTOR, ROLE_ASSIST, ROLE_GUARD)))
+        logger.info("文本模型已预热")
 
     async def stop(self, *, aborted: bool = False) -> InterviewState | None:
         state = self._state
@@ -671,7 +686,12 @@ class InterviewEngine:
         )
         if payload.is_empty:
             if not auto:
-                self._bus.emit(EngineFailure(user_message="提词器暂时没能给出建议，再试一次"))
+                model = self._store.settings.chat_model(ROLE_ASSIST)
+                self._bus.emit(
+                    EngineFailure(
+                        user_message=f"提词器（{model}）没能及时返回，可能网络慢或模型繁忙，稍后再试"
+                    )
+                )
             return
         self._bus.emit(
             CopilotHint(

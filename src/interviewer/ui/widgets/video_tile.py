@@ -7,6 +7,7 @@ from PySide6.QtMultimedia import QCamera, QMediaCaptureSession, QMediaDevices
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QStackedLayout, QVBoxLayout, QWidget
 
+from .. import icons
 from ..theme import Color
 from .audio_meter import VoiceBars
 from .common import Panel
@@ -29,16 +30,18 @@ class CameraTile(Panel):
         self._camera: QCamera | None = None
         self._session: QMediaCaptureSession | None = None
 
+        # 必须用单页模式：StackAll 下所有层同时可见，关摄像头只会改叠放顺序，
+        # 视频层仍然停留在最后一帧
         self._stack = QStackedLayout(self)
         self._stack.setContentsMargins(0, 0, 0, 0)
-        self._stack.setStackingMode(QStackedLayout.StackingMode.StackAll)
 
         self._video = QVideoWidget()
-        self._video.setStyleSheet("background: transparent; border-radius: 14px;")
+        self._video.setStyleSheet("background: #000000; border-radius: 14px;")
         self._placeholder = self._build_placeholder()
 
         self._stack.addWidget(self._placeholder)
         self._stack.addWidget(self._video)
+        self._stack.setCurrentWidget(self._placeholder)
 
         self._badge = QLabel(name, self)
         self._badge.setStyleSheet(
@@ -56,9 +59,10 @@ class CameraTile(Panel):
         holder = QWidget()
         layout = QVBoxLayout(holder)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon = QLabel("◍")
+        layout.setSpacing(12)
+        icon = QLabel()
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon.setStyleSheet(f"color: {Color.STAGE_TEXT_MUTED}; font-size: 46px;")
+        icon.setPixmap(icons.pixmap("video_off", size=44, color=Color.STAGE_TEXT_MUTED, width=1.8))
         text = QLabel("摄像头已关闭")
         text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text.setStyleSheet(f"color: {Color.STAGE_TEXT_MUTED}; font-size: 13px;")

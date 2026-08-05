@@ -362,6 +362,8 @@ class RealtimeClient:
         if kind == proto.RESPONSE_DONE:
             self._responding = False
             self._response_id = None
+            # 这一轮不会再有音频，让播放器把残留放完而不是继续等水位
+            self._player.drain()
             self._sink.on_response(False)
             return
 

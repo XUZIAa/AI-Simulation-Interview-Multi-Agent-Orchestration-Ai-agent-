@@ -162,23 +162,35 @@ class AudioCapture:
 
 
 class AudioPlayer:
-    """面试官语音播放。内部环形缓冲，打断时整体丢弃未播完的音频。"""
+    """面试官语音播放。
+
+    带抖动缓冲：实时语音的音频块是突发到达的，一有空档就用静音补会造成
+    每个回调都断一下，听感上像卡顿且语速失真。改为先蓄水到水位再起播，
+    中途被抽干就整体重新蓄水，让声音要么连续、要么明确停顿。
+    """
 
     def __init__(
         self,
         *,
         sample_rate: int,
         device_name: str = "",
-        buffer_ms: int = 180,
-        block_ms: int = 20,
+        prefill_ms: int = 260,
+        refill_ms: int = 140,
+        capacity_ms: int = 4000,
+        block_ms: int = 40,
     ) -> None:
         self._sample_rate = sample_rate
         self._device = _resolve_device(device_name, want_input=False)
-        self._blocksize = max(120, int(sample_rate * block_ms / 1000))
-        self._capacity = max(self._blocksize * 4, int(sample_rate * buffer_ms / 1000) * 4)
+        self._blocksize = max(160, int(sample_rate * block_ms / 1000))
+        self._capacity = max(self._blocksize * 8, int(sample_rate * capacity_ms / 1000))
+        self._prefill = int(sample_rate * prefill_ms / 1000)
+        self._refill = int(sample_rate * refill_ms / 1000)
         self._buffer = np.zeros(self._capacity, dtype=np.int16)
         self._read = 0
         self._length = 0
+        self._priming = True
+        self._draining = False
+        self._started = False
         self._lock = threading.Lock()
         self._stream: sd.OutputStream | None = None
         self._level = 0.0
@@ -232,6 +244,7 @@ class AudioPlayer:
         with self._lock:
             if epoch is not None and epoch != self._epoch:
                 return
+            self._draining = False
             available = self._capacity - self._length
             if samples.size > available:
                 drop = samples.size - available
@@ -248,6 +261,15 @@ class AudioPlayer:
     def _pull(self, frames: int) -> np.ndarray:
         out = np.zeros(frames, dtype=np.int16)
         with self._lock:
+            if self._priming and not self._draining:
+                # 蓄水未达水位，先安静等着，别输出碎片。
+                # 首句起播要稳，断流后重起用更低水位，恢复更快。
+                threshold = self._refill if self._started else self._prefill
+                if self._length < threshold:
+                    self._push_reference(out)
+                    return out
+                self._priming = False
+                self._started = True
             take = min(frames, self._length)
             if take > 0:
                 first = min(take, self._capacity - self._read)
@@ -257,6 +279,9 @@ class AudioPlayer:
                     out[first:take] = self._buffer[:rest]
                 self._read = (self._read + take) % self._capacity
                 self._length -= take
+            if take < frames and not self._draining:
+                # 被抽干了，整体重新蓄水，避免逐块断续
+                self._priming = True
             self._push_reference(out)
         return out
 
@@ -286,6 +311,12 @@ class AudioPlayer:
             head = self._ref_capacity - start
             return np.concatenate((self._ref[start:], self._ref[: count - head]))
 
+    def drain(self) -> None:
+        """上游已说完：把残留播完，不再等水位，否则尾音会卡在缓冲里。"""
+        with self._lock:
+            self._draining = True
+            self._priming = False
+
     def clear(self) -> int:
         """清空缓冲并推进 epoch，返回新 epoch。"""
         with self._lock:
@@ -293,6 +324,9 @@ class AudioPlayer:
             self._length = 0
             self._epoch += 1
             self._level = 0.0
+            self._priming = True
+            self._draining = False
+            self._started = False
             self._ref_filled = 0
             self._ref_pos = 0
             return self._epoch

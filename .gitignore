@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# 虚拟环境
+.venv/
+venv/
+
+# 打包产物
+build/
+dist/
+*.manifest
+
+# 工具缓存
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# 本地数据与密钥（运行时写入 %LOCALAPPDATA%/Interviewer，不应入库）
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+config.json
+config.json.broken
+*.log
+recordings/
+exports/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

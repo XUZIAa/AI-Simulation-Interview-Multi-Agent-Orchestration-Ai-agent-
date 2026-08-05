@@ -78,7 +78,7 @@ class ResumeAgent(Agent):
             [system(prompts.RESUME_EXTRACT), user(raw_text[:20000])],
             _ResumeRaw,
             temperature=0.1,
-            max_tokens=3000,
+            max_tokens=4096,
         )
         return ResumeProfile(
             source_name=source_name,

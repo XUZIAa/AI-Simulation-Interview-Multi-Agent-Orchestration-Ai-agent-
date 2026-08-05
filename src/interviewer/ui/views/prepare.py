@@ -33,6 +33,7 @@ from ..widgets.common import (
     Card,
     Chip,
     Divider,
+    combo_enum,
     faint,
     ghost_button,
     h3,
@@ -117,10 +118,10 @@ class PrepareView(QWidget):
         card.add(h3("1 · 简历"))
         self._resume_combo = QComboBox()
         self._resume_combo.currentIndexChanged.connect(self._on_resume_pick)
-        upload = icon_button("upload", "上传简历文件", self._upload_resume)
-        upload.setFixedWidth(150)
-        card.add_layout(self._pick_row(self._resume_combo, upload))
-        self._resume_status = faint("支持 PDF / DOCX / TXT。")
+        self._resume_btn = icon_button("upload", "上传简历文件", self._upload_resume)
+        self._resume_btn.setFixedWidth(150)
+        card.add_layout(self._pick_row(self._resume_combo, self._resume_btn))
+        self._resume_status = faint("支持 PDF / DOCX / TXT。", wrap=True)
         card.add(self._resume_status)
         self._resume_summary = AutoLabel()
         card.add(self._resume_summary)
@@ -151,8 +152,10 @@ class PrepareView(QWidget):
 
         actions = QHBoxLayout()
         actions.setSpacing(10)
-        actions.addWidget(icon_button("upload", "上传 JD 文件", self._upload_job))
-        actions.addWidget(icon_button("copy", "粘贴 JD 文本", self._paste_job))
+        self._job_upload_btn = icon_button("upload", "上传 JD 文件", self._upload_job)
+        self._job_paste_btn = icon_button("copy", "粘贴 JD 文本", self._paste_job)
+        actions.addWidget(self._job_upload_btn)
+        actions.addWidget(self._job_paste_btn)
         actions.addStretch(1)
         card.add_layout(actions)
 
@@ -168,10 +171,10 @@ class PrepareView(QWidget):
              "全栈工程师", "测试开发工程师", "运维/SRE", "客户端开发工程师"]
         )
         self._gen_title.setCurrentText("")
-        gen_btn = icon_button("sparkles", "一键生成 JD", self._generate_job, kind="Primary")
-        gen_btn.setFixedWidth(150)
+        self._gen_btn = icon_button("sparkles", "一键生成 JD", self._generate_job, kind="Primary")
+        self._gen_btn.setFixedWidth(150)
         gen_row.addWidget(self._gen_title, 1)
-        gen_row.addWidget(gen_btn)
+        gen_row.addWidget(self._gen_btn)
         gen.add_layout(gen_row)
         card.add(gen)
 
@@ -186,13 +189,23 @@ class PrepareView(QWidget):
     def _gap_card(self) -> Card:
         card = Card()
         top = QHBoxLayout()
-        top.addWidget(h3("3 · 差距诊断"), 1)
+        top.setSpacing(10)
+        top.addWidget(h3("3 · 差距诊断"))
+        top.addWidget(Badge("可选", color=Color.TEXT_FAINT))
+        top.addStretch(1)
         self._diag_btn = icon_button("target", "开始诊断", self._diagnose, kind="Primary")
         self._diag_btn.setFixedWidth(130)
         self._diag_btn.setEnabled(False)
         top.addWidget(self._diag_btn)
         card.add_layout(top)
-        self._gap_status = faint("先选择简历和岗位，再开始诊断。")
+        card.add(
+            faint(
+                "把简历和 JD 摆在一起比对：指出你缺哪些硬性要求，"
+                "并给出面试时怎么用现有经历弥补的话术。做过这步，题库会围绕你的短板出题。",
+                wrap=True,
+            )
+        )
+        self._gap_status = faint("先选好简历和岗位，才能开始诊断。", wrap=True)
         card.add(self._gap_status)
         self._gap_body = QVBoxLayout()
         self._gap_body.setSpacing(12)
@@ -348,21 +361,28 @@ class PrepareView(QWidget):
 
     # ---------- 异步动作 ----------
 
+    @staticmethod
+    def _set_status(label: QLabel, text: str, *, error: bool = False) -> None:
+        label.setText(text)
+        color = Color.DANGER if error else Color.TEXT_FAINT
+        label.setStyleSheet(f"color: {color}; font-size: 13px;")
+
     def _run(
         self,
         factory: Callable[[Callable[[str, int], None]], Awaitable],
         status: QLabel,
-        button: QPushButton | None,
+        *lock: QWidget,
     ) -> None:
-        if button is not None:
-            button.setEnabled(False)
+        """跑一步资料处理。lock 里的控件在解析期间禁用，避免重复提交。"""
+        for widget in lock:
+            widget.setEnabled(False)
 
         def progress(stage: str, pct: int) -> None:
-            status.setText(f"{stage} … {pct}%")
+            self._set_status(status, f"{stage} … {pct}%")
 
         def restore() -> None:
-            if button is not None:
-                button.setEnabled(True)
+            for widget in lock:
+                widget.setEnabled(True)
 
         def ok(result) -> None:
             restore()
@@ -370,8 +390,10 @@ class PrepareView(QWidget):
 
         def err(exc: Exception) -> None:
             restore()
-            status.setText("出错了，请重试")
-            self._nav.toast(getattr(exc, "user_message", str(exc)), kind="error")
+            # 真实原因要留在界面上，toast 会消失
+            reason = getattr(exc, "user_message", "") or str(exc) or exc.__class__.__name__
+            self._set_status(status, reason, error=True)
+            self._nav.toast(reason, kind="error")
 
         spawn(factory(progress), on_success=ok, on_error=err, context="资料处理")
 
@@ -419,13 +441,22 @@ class PrepareView(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "选择简历", "", "文档 (*.pdf *.docx *.txt *.md)")
         if not path:
             return
-        self._run(lambda cb: self._ctx.prepare.ingest_resume(Path(path), on_progress=cb), self._resume_status, None)
+        self._run(
+            lambda cb: self._ctx.prepare.ingest_resume(Path(path), on_progress=cb),
+            self._resume_status,
+            self._resume_btn,
+            self._resume_combo,
+        )
 
     def _upload_job(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "选择 JD 文件", "", "文档 (*.pdf *.docx *.txt *.md)")
         if not path:
             return
-        self._run(lambda cb: self._ctx.prepare.ingest_job_file(Path(path), on_progress=cb), self._job_status, None)
+        self._run(
+            lambda cb: self._ctx.prepare.ingest_job_file(Path(path), on_progress=cb),
+            self._job_status,
+            *self._job_locks(),
+        )
 
     def _paste_job(self) -> None:
         dialog = _PasteDialog(self)
@@ -434,19 +465,33 @@ class PrepareView(QWidget):
         text = dialog.text()
         if not text:
             return
-        self._run(lambda cb: self._ctx.prepare.ingest_job_text(text, on_progress=cb), self._job_status, None)
+        self._run(
+            lambda cb: self._ctx.prepare.ingest_job_text(text, on_progress=cb),
+            self._job_status,
+            *self._job_locks(),
+        )
+
+    def _job_locks(self) -> tuple[QWidget, ...]:
+        """岗位来源互斥：任一路径在解析时，其余入口都锁住。"""
+        return (
+            self._job_upload_btn,
+            self._job_paste_btn,
+            self._gen_btn,
+            self._job_combo,
+            self._gen_title,
+        )
 
     def _generate_job(self) -> None:
         title = self._gen_title.currentText().strip()
         if not title:
             self._nav.toast("先填岗位名称再生成", kind="warning")
             return
-        tier = self._tier_combo.currentData()
-        level = self._level_combo.currentData()
+        tier = combo_enum(self._tier_combo, CompanyTier, CompanyTier.BIG_TECH)
+        level = combo_enum(self._level_combo, JobLevel, JobLevel.MID)
         self._run(
             lambda cb: self._ctx.prepare.synthesize_job(title=title, tier=tier, level=level, on_progress=cb),
             self._job_status,
-            None,
+            *self._job_locks(),
         )
 
     def _diagnose(self) -> None:
@@ -545,8 +590,8 @@ class PrepareView(QWidget):
         persona = self._persona_combo.currentData()
         if not isinstance(persona, PersonaContract) or self._resume is None or self._job is None:
             return
-        tier = self._tier_combo.currentData()
-        level = self._level_combo.currentData()
+        tier = combo_enum(self._tier_combo, CompanyTier, CompanyTier.BIG_TECH)
+        level = combo_enum(self._level_combo, JobLevel, JobLevel.MID)
         coding = self._coding_chip.selected
         self._start_btn.setEnabled(False)
         self._launch_status.setText("正在生成题库并排定流程…")

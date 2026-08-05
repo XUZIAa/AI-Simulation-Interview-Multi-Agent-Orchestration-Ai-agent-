@@ -32,6 +32,7 @@ from ..widgets.common import (
     Card,
     Divider,
     Panel,
+    combo_enum,
     faint,
     h3,
     icon_button,
@@ -381,8 +382,8 @@ class PersonaWorkshopView(QWidget):
         return PersonaContract(
             id=self._current.id if self._current else None,
             name=self._name.text().strip() or "未命名面试官",
-            archetype=self._archetype.currentData(),
-            company_tier=self._tier.currentData(),
+            archetype=combo_enum(self._archetype, PersonaArchetype, PersonaArchetype.STRUCTURED),
+            company_tier=combo_enum(self._tier, CompanyTier, CompanyTier.BIG_TECH),
             job_title=self._job.text().strip() or "技术面试官",
             company_flavor=self._flavor.text().strip() or "一家节奏很快的公司",
             voice=self._voice.currentData() or "",

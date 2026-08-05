@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import webbrowser
+from collections.abc import Awaitable, Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSlider,
     QTabWidget,
@@ -26,18 +28,22 @@ from ...core.providers_catalog import (
     REALTIME_PROVIDERS,
     ROLE_LABELS,
     VOICE_LABELS,
+    ChatProvider,
     RoleBinding,
+    model_traits,
 )
+from ...llm import ProbeResult, probe_chat
 from ...realtime.audio_io import AudioDeviceInfo, input_devices, output_devices
+from ...realtime.probe import probe_realtime
 from ..navigation import Navigator
 from ..theme import Color
 from ..widgets.common import (
+    AutoLabel,
     Card,
     TextButton,
     faint,
     h3,
     icon_button,
-    lead,
     page_title,
 )
 
@@ -75,17 +81,31 @@ class _SliderRow(QWidget):
 class _RoleEditor(QWidget):
     def __init__(self) -> None:
         super().__init__()
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(4)
+        row = QHBoxLayout()
+        row.setSpacing(10)
         self.provider = QComboBox()
         for key, provider in CHAT_PROVIDERS.items():
             self.provider.addItem(provider.label, key)
         self.model = QComboBox()
         self.model.setEditable(True)
         self.provider.currentIndexChanged.connect(self._reload_models)
-        layout.addWidget(self.provider, 3)
-        layout.addWidget(self.model, 4)
+        self.model.currentTextChanged.connect(self._check_traits)
+        row.addWidget(self.provider, 3)
+        row.addWidget(self.model, 4)
+        root.addLayout(row)
+        self._warn = AutoLabel(color=Color.WARNING, size=12)
+        root.addWidget(self._warn)
+
+    def _check_traits(self) -> None:
+        if model_traits(self.model.currentText()).reasoning:
+            self._warn.setText(
+                "推理模型的思维链会占满输出配额，本项目全靠结构化输出，建议换成非推理模型"
+            )
+        else:
+            self._warn.setText("")
 
     def _reload_models(self) -> None:
         key = self.provider.currentData()
@@ -102,15 +122,53 @@ class _RoleEditor(QWidget):
         return RoleBinding(provider=self.provider.currentData(), model=self.model.currentText().strip())
 
 
-class _ApiKeyRow(QWidget):
-    def __init__(self, provider_key: str, label: str, console_url: str) -> None:
+class _ProbeRow(QWidget):
+    """带连通性测试的行基类：一行控件 + 一行结果，结果为空时自动隐藏。"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._root = QVBoxLayout(self)
+        self._root.setContentsMargins(0, 0, 0, 0)
+        self._root.setSpacing(5)
+        self.row = QHBoxLayout()
+        self.row.setSpacing(10)
+        self._root.addLayout(self.row)
+        self._result = AutoLabel()
+        self._root.addWidget(self._result)
+
+    def report(self, ok: bool | None, text: str) -> None:
+        color = Color.TEXT_MUTED if ok is None else (Color.SUCCESS if ok else Color.DANGER)
+        self._result.setStyleSheet(f"color: {color}; font-size: 12px;")
+        self._result.setText(text)
+
+    def run_probe(
+        self,
+        button: QPushButton,
+        factory: Callable[[], Awaitable[ProbeResult]],
+        pending: str,
+    ) -> None:
+        button.setEnabled(False)
+        self.report(None, pending)
+
+        def done(result: ProbeResult) -> None:
+            button.setEnabled(True)
+            self.report(result.ok, result.detail)
+
+        def failed(exc: Exception) -> None:
+            button.setEnabled(True)
+            self.report(False, f"{exc.__class__.__name__}: {str(exc)[:120]}")
+
+        spawn(factory(), on_success=done, on_error=failed, context="连通性测试")
+
+
+class _ApiKeyRow(_ProbeRow):
+    def __init__(self, provider_key: str, provider: ChatProvider) -> None:
         super().__init__()
         self.provider_key = provider_key
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
-        name = QLabel(label)
-        name.setFixedWidth(180)
+        self._provider = provider
+
+        name = QLabel(provider.label)
+        name.setFixedWidth(150)
         name.setStyleSheet(f"color: {Color.TEXT}; font-weight: 600;")
         self.field = QLineEdit()
         self.field.setEchoMode(QLineEdit.EchoMode.Password)
@@ -121,11 +179,32 @@ class _ApiKeyRow(QWidget):
                 QLineEdit.EchoMode.Normal if on else QLineEdit.EchoMode.Password
             )
         )
-        layout.addWidget(name)
-        layout.addWidget(self.field, 1)
-        layout.addWidget(reveal)
-        if console_url:
-            layout.addWidget(TextButton("获取", lambda: webbrowser.open(console_url)))
+        self._test_btn = icon_button("check_circle", "测试", self._test)
+        self._test_btn.setFixedWidth(96)
+
+        self.row.addWidget(name)
+        self.row.addWidget(self.field, 1)
+        self.row.addWidget(reveal)
+        self.row.addWidget(self._test_btn)
+        if provider.console_url:
+            self.row.addWidget(TextButton("获取", lambda: webbrowser.open(provider.console_url)))
+
+    def _test(self) -> None:
+        key = self.field.text().strip()
+        if not key:
+            self.report(False, "先粘贴 API Key 再测试")
+            return
+        model = self._provider.default_model
+        self.run_probe(
+            self._test_btn,
+            lambda: probe_chat(
+                provider_key=self.provider_key,
+                base_url=self._provider.base_url,
+                api_key=key,
+                model=model,
+            ),
+            f"正在用 {model} 测试…",
+        )
 
 
 class SettingsView(QWidget):
@@ -148,7 +227,6 @@ class SettingsView(QWidget):
         col = QVBoxLayout()
         col.setSpacing(4)
         col.addWidget(page_title("设置"))
-        col.addWidget(lead("配置模型、密钥、语音与音频。密钥仅保存在本机系统凭据库。"))
         header.addLayout(col, 1)
         self._save_btn = icon_button("save", "保存设置", self._save, kind="Primary")
         self._save_btn.setFixedWidth(150)
@@ -175,16 +253,14 @@ class SettingsView(QWidget):
 
         keys_card = Card()
         keys_card.add(h3("API 密钥"))
-        keys_card.add(faint("按需填写，用到哪个模型就配哪个。实时语音与文本模型共用同一家的密钥。"))
         for key, provider in CHAT_PROVIDERS.items():
-            row = _ApiKeyRow(key, provider.label, provider.console_url)
+            row = _ApiKeyRow(key, provider)
             self._key_rows[key] = row
             keys_card.add(row)
         layout.addWidget(keys_card)
 
         roles_card = Card()
         roles_card.add(h3("角色模型绑定"))
-        roles_card.add(faint("不同角色可分别指定模型，在成本与质量间平衡。"))
         grid = QGridLayout()
         grid.setSpacing(12)
         grid.setColumnStretch(1, 1)
@@ -201,7 +277,6 @@ class SettingsView(QWidget):
 
         rt_card = Card()
         rt_card.add(h3("实时语音"))
-        rt_card.add(faint("端到端语音模型，负责听与说；人格与节奏由后端状态机注入。"))
         rt_grid = QGridLayout()
         rt_grid.setSpacing(12)
         rt_grid.setColumnStretch(1, 1)
@@ -225,9 +300,33 @@ class SettingsView(QWidget):
             rt_grid.addWidget(label, r, 0)
             rt_grid.addWidget(widget, r, 1)
         rt_card.add_layout(rt_grid)
+
+        self._rt_probe = _ProbeRow()
+        self._rt_test_btn = icon_button("check_circle", "测试实时语音连通", self._test_realtime)
+        self._rt_probe.row.addWidget(self._rt_test_btn)
+        self._rt_probe.row.addStretch(1)
+        rt_card.add(self._rt_probe)
+
         layout.addWidget(rt_card)
         layout.addStretch(1)
         return self._scroll(host)
+
+    def _test_realtime(self) -> None:
+        provider = REALTIME_PROVIDERS[self._rt_provider.currentData()]
+        model = self._rt_model.currentText().strip()
+        # 实时语音与文本模型共用同一份密钥，直接取上面那一行的输入
+        row = self._key_rows.get(provider.credential_key)
+        api_key = row.field.text().strip() if row is not None else ""
+        if not api_key:
+            owner = CHAT_PROVIDERS.get(provider.credential_key)
+            name = owner.label if owner else provider.credential_key
+            self._rt_probe.report(False, f"先在上面填写「{name}」的 API Key")
+            return
+        self._rt_probe.run_probe(
+            self._rt_test_btn,
+            lambda: probe_realtime(provider=provider, api_key=api_key, model=model),
+            f"正在握手 {model} …",
+        )
 
     def _audio_tab(self) -> QWidget:
         host = QWidget()

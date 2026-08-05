@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from enum import Enum
+from typing import TypeVar
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -15,6 +18,8 @@ from PySide6.QtWidgets import (
 
 from .. import icons
 from ..theme import RADIUS, RADIUS_LG, Color, qcolor
+
+E = TypeVar("E", bound=Enum)
 
 
 class Panel(QFrame):
@@ -464,6 +469,21 @@ class EmptyState(Card):
             self.body().addSpacing(4)
             self.body().addWidget(action, 0, Qt.AlignmentFlag.AlignHCenter)
         self.body().addStretch(1)
+
+
+def combo_enum(combo: QComboBox, enum_cls: type[E], fallback: E) -> E:
+    """从下拉框取回枚举值。
+
+    StrEnum 继承自 str，PySide6 会把它当普通字符串存进 userData，
+    取回来是 "big_tech" 而不是枚举成员，直接用会丢掉 .label 之类的成员方法。
+    """
+    raw = combo.currentData()
+    if isinstance(raw, enum_cls):
+        return raw
+    try:
+        return enum_cls(raw)
+    except (ValueError, TypeError):
+        return fallback
 
 
 def row(*widgets: QWidget, spacing: int = 12, stretch_last: bool = False) -> QHBoxLayout:

@@ -122,9 +122,9 @@ QStackedWidget#ViewStack {{
     background-color: {c.BG};
 }}
 
-QWidget#Sidebar {{
+QWidget#TopBar {{
     background-color: {c.SURFACE};
-    border-right: 1px solid {c.BORDER};
+    border-bottom: 1px solid {c.BORDER};
 }}
 
 QToolTip {{
@@ -178,13 +178,6 @@ QLabel#H3 {{ font-size: 15px; font-weight: 650; color: {c.TEXT}; }}
 QLabel#Muted {{ color: {c.TEXT_MUTED}; }}
 QLabel#Faint {{ color: {c.TEXT_FAINT}; font-size: 13px; }}
 QLabel#Metric {{ font-size: 34px; font-weight: 700; color: {c.TEXT}; }}
-QLabel#NavGroup {{
-    color: {c.TEXT_FAINT};
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-}}
-
 QPushButton {{
     background-color: {c.SURFACE};
     color: {c.TEXT};

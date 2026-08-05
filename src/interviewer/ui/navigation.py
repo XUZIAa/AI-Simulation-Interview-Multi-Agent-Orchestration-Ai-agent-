@@ -42,20 +42,13 @@ _GLYPHS: dict[Page, str] = {
     Page.SETTINGS: "settings",
 }
 
-NAV_ORDER: tuple[Page, ...] = (
+# 顶部主导航。设置不在其中，单独放到右侧操作区
+TOP_NAV: tuple[Page, ...] = (
     Page.DASHBOARD,
     Page.PREPARE,
     Page.PERSONA,
     Page.MISTAKES,
     Page.GROWTH,
-    Page.SETTINGS,
-)
-
-# 侧栏分组：把"做一场面试"和"复习提升"分开，减少一长串平铺项的廉价感
-NAV_GROUPS: tuple[tuple[str, tuple[Page, ...]], ...] = (
-    ("模拟面试", (Page.DASHBOARD, Page.PREPARE, Page.PERSONA)),
-    ("复习提升", (Page.MISTAKES, Page.GROWTH)),
-    ("系统", (Page.SETTINGS,)),
 )
 
 

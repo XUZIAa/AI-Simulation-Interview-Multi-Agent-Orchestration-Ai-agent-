@@ -24,7 +24,7 @@ from ..domain.interview import InterviewState
 from ..domain.persona import PersonaContract
 from . import icons
 from .chrome import AppWindow
-from .navigation import NAV_GROUPS, Page
+from .navigation import TOP_NAV, Page
 from .theme import Color
 from .views.dashboard import DashboardView
 from .views.growth import GrowthView
@@ -38,33 +38,41 @@ from .views.settings import SettingsView
 logger = logging.getLogger(__name__)
 
 
-class NavButton(QWidget):
-    """侧栏导航项。左侧选中指示条 + 线性图标 + 标题，选中态图标同步换色。"""
+class NavItem(QWidget):
+    """顶部导航项。线性图标 + 标题，选中态用胶囊底，图标同步换色。"""
 
-    def __init__(self, page: Page, on_click: Callable[[Page], None]) -> None:
+    def __init__(
+        self,
+        page: Page,
+        on_click: Callable[[Page], None],
+        *,
+        icon_only: bool = False,
+    ) -> None:
         super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.page = page
         self._checked = False
         self._hover = False
         self._on_click = on_click
-        self.setFixedHeight(42)
+        self._icon_only = icon_only
+        self.setFixedHeight(36)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 8, 0)
-        row.setSpacing(0)
-
-        self._marker = QFrame()
-        self._marker.setFixedWidth(3)
-        row.addWidget(self._marker)
+        pad = 9 if icon_only else 12
+        row.setContentsMargins(pad, 0, pad, 0)
+        row.setSpacing(8)
 
         self._glyph = QLabel()
-        self._glyph.setFixedWidth(38)
         self._glyph.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row.addWidget(self._glyph)
 
-        self._text = QLabel(page.title)
-        row.addWidget(self._text, 1)
+        self._text: QLabel | None = None
+        if not icon_only:
+            self._text = QLabel(page.title)
+            row.addWidget(self._text)
+        else:
+            self.setToolTip(page.title)
         self._render()
 
     def setChecked(self, value: bool) -> None:
@@ -78,19 +86,15 @@ class NavButton(QWidget):
     def _render(self) -> None:
         if self._checked:
             tone, weight, bg = Color.PRIMARY_TEXT, 650, Color.PRIMARY_SOFT
-            marker = Color.PRIMARY
         elif self._hover:
             tone, weight, bg = Color.TEXT, 600, Color.SURFACE_HOVER
-            marker = "transparent"
         else:
             tone, weight, bg = Color.TEXT_MUTED, 600, "transparent"
-            marker = "transparent"
         self.setStyleSheet(
-            f"NavButton {{ background: {bg}; border-radius: 9px; }}"
+            f"NavItem {{ background: {bg}; border-radius: 9px; }}"
             f"QLabel {{ color: {tone}; font-size: 14px; font-weight: {weight}; background: transparent; }}"
         )
-        self._marker.setStyleSheet(f"background: {marker}; border-radius: 1px;")
-        self._glyph.setPixmap(icons.pixmap(self.page.glyph, size=19, color=tone))
+        self._glyph.setPixmap(icons.pixmap(self.page.glyph, size=18, color=tone))
 
     def enterEvent(self, event) -> None:
         self._hover = True
@@ -170,18 +174,18 @@ class MainWindow(AppWindow):
         self._ctx = context
         self.setMinimumSize(880, 620)
 
-        self._nav_buttons: dict[Page, NavButton] = {}
+        self._nav_buttons: dict[Page, NavItem] = {}
         self._build_ui()
         self._toast = Toast(self.content_host())
 
     def _build_ui(self) -> None:
         host = self.content_host()
-        layout = QHBoxLayout(host)
+        layout = QVBoxLayout(host)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self._sidebar = self._build_sidebar()
-        layout.addWidget(self._sidebar)
+        self._topbar = self._build_topbar()
+        layout.addWidget(self._topbar)
 
         self._stack = QStackedWidget()
         # 必须用作用域选择器：裸 background 声明会继承到所有后代，
@@ -223,67 +227,60 @@ class MainWindow(AppWindow):
             self._stack.addWidget(self._review_view)
         return self._review_view
 
-    def _build_sidebar(self) -> QWidget:
+    def _build_topbar(self) -> QWidget:
         bar = QWidget()
-        bar.setObjectName("Sidebar")
-        bar.setFixedWidth(228)
-        layout = QVBoxLayout(bar)
-        layout.setContentsMargins(12, 20, 12, 16)
-        layout.setSpacing(4)
+        bar.setObjectName("TopBar")
+        bar.setFixedHeight(58)
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(20, 0, 20, 0)
+        row.setSpacing(6)
 
-        layout.addWidget(self._build_brand())
-        layout.addSpacing(18)
+        row.addWidget(self._build_brand())
+        row.addSpacing(26)
 
-        for group, pages in NAV_GROUPS:
-            tag = QLabel(group)
-            tag.setObjectName("NavGroup")
-            tag.setContentsMargins(14, 8, 0, 4)
-            layout.addWidget(tag)
-            for page in pages:
-                btn = NavButton(page, self.navigate)
-                self._nav_buttons[page] = btn
-                layout.addWidget(btn)
-            layout.addSpacing(6)
+        for page in TOP_NAV:
+            item = NavItem(page, self.navigate)
+            self._nav_buttons[page] = item
+            row.addWidget(item)
 
-        layout.addStretch(1)
-        layout.addWidget(self._build_privacy_note())
+        row.addStretch(1)
+        row.addWidget(self._build_privacy_note())
+        row.addSpacing(12)
+
+        settings = NavItem(Page.SETTINGS, self.navigate, icon_only=True)
+        self._nav_buttons[Page.SETTINGS] = settings
+        row.addWidget(settings)
         return bar
 
     def _build_brand(self) -> QWidget:
         host = QWidget()
         row = QHBoxLayout(host)
-        row.setContentsMargins(10, 0, 0, 0)
-        row.setSpacing(11)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
 
         mark = QLabel()
-        mark.setFixedSize(36, 36)
+        mark.setFixedSize(30, 30)
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        mark.setPixmap(icons.pixmap("target", size=21, color=Color.TEXT_ON_PRIMARY, width=2.1))
-        mark.setStyleSheet(f"background: {Color.PRIMARY}; border-radius: 10px;")
+        mark.setPixmap(icons.pixmap("target", size=18, color=Color.TEXT_ON_PRIMARY, width=2.1))
+        mark.setStyleSheet(f"background: {Color.PRIMARY}; border-radius: 9px;")
         row.addWidget(mark)
 
-        text = QVBoxLayout()
-        text.setSpacing(0)
         name = QLabel("AI 模拟面试")
         name.setStyleSheet(f"color: {Color.TEXT}; font-size: 15px; font-weight: 700;")
-        tag = QLabel("Mock Interview Copilot")
-        tag.setStyleSheet(f"color: {Color.TEXT_FAINT}; font-size: 10px; letter-spacing: 0.6px;")
-        text.addWidget(name)
-        text.addWidget(tag)
-        row.addLayout(text, 1)
+        row.addWidget(name)
         return host
 
     def _build_privacy_note(self) -> QWidget:
         host = QWidget()
         row = QHBoxLayout(host)
-        row.setContentsMargins(14, 0, 0, 0)
-        row.setSpacing(7)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
         mark = QLabel()
         mark.setPixmap(icons.pixmap("shield", size=14, color=Color.SUCCESS))
         row.addWidget(mark)
         text = QLabel("本地运行 · 数据不出本机")
         text.setStyleSheet(f"color: {Color.TEXT_FAINT}; font-size: 11px;")
-        row.addWidget(text, 1)
+        row.addWidget(text)
         return host
 
     # ------------------------------------------------------------------
@@ -291,7 +288,7 @@ class MainWindow(AppWindow):
     # ------------------------------------------------------------------
 
     def navigate(self, page: Page) -> None:
-        self._sidebar.setVisible(True)
+        self._topbar.setVisible(True)
         view = self._ensure_view(page)
         self._stack.setCurrentWidget(view)
         for key, btn in self._nav_buttons.items():
@@ -308,13 +305,13 @@ class MainWindow(AppWindow):
                 view.preselect_persona(persona)
 
     def start_interview(self, state: InterviewState) -> None:
-        self._sidebar.setVisible(False)
+        self._topbar.setVisible(False)
         room = self._ensure_room()
         self._stack.setCurrentWidget(room)
         room.begin(state)
 
     def open_review(self, session_id: int, *, generate: bool = False) -> None:
-        self._sidebar.setVisible(True)
+        self._topbar.setVisible(True)
         for btn in self._nav_buttons.values():
             btn.setChecked(False)
         review = self._ensure_review()

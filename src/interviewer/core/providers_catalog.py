@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field
 
 
@@ -13,6 +15,42 @@ class ChatProvider(BaseModel):
     models: tuple[str, ...]
     console_url: str
     supports_json_object: bool = True
+
+
+class ModelTraits(BaseModel):
+    """模型能力差异。
+
+    同一供应商下不同模型能力可能完全不同（deepseek-chat 与 deepseek-reasoner），
+    所以能力必须按模型名判定，不能挂在供应商上。
+    """
+
+    reasoning: bool = False
+    json_object: bool = True  # 能否可靠使用 response_format=json_object
+    min_output_tokens: int = 0  # 输出配额下限
+    tunable_sampling: bool = True  # 是否接受 temperature / top_p
+
+
+# 推理模型的思维链与正文共享输出配额，配额给小了会返回 200 但正文为空；
+# 且思考模式下 JSON 常落进思维链字段，response_format 不可靠。
+_REASONING_TRAITS = ModelTraits(
+    reasoning=True,
+    json_object=False,
+    min_output_tokens=16384,
+    tunable_sampling=False,
+)
+
+# r1 / o1 / o3 要按独立片段匹配，避免 model-o1x 这类误判
+_REASONING_RE = re.compile(
+    r"reasoner|reasoning|thinking|qwq"
+    r"|(?:^|[^a-z0-9])r1(?:$|[^a-z0-9])"
+    r"|(?:^|[^a-z0-9])o[13](?:$|[^a-z0-9])"
+)
+
+
+def model_traits(model: str) -> ModelTraits:
+    if _REASONING_RE.search(model.strip().lower()):
+        return _REASONING_TRAITS
+    return ModelTraits()
 
 
 class RealtimeProvider(BaseModel):
@@ -183,7 +221,8 @@ class RoleBinding(BaseModel):
 
 DEFAULT_ROLE_BINDINGS: dict[str, RoleBinding] = {
     "director": RoleBinding(provider="deepseek", model="deepseek-chat"),
-    "analyst": RoleBinding(provider="deepseek", model="deepseek-reasoner"),
+    # 分析师全是结构化输出，推理模型在这个位置不可靠：思维链吃掉配额、JSON 常落进思维链字段
+    "analyst": RoleBinding(provider="deepseek", model="deepseek-chat"),
     "guard": RoleBinding(provider="dashscope", model="qwen-flash"),
     "assist": RoleBinding(provider="dashscope", model="qwen-flash"),
 }

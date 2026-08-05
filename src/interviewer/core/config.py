@@ -35,7 +35,8 @@ class AudioSettings(BaseModel):
     silence_duration_ms: int = Field(default=620, ge=200, le=2000)
     prefix_padding_ms: int = Field(default=300, ge=0, le=1000)
     semantic_vad: bool = True
-    playback_buffer_ms: int = Field(default=180, ge=60, le=600)
+    # 起播蓄水水位。低于 220ms 实时语音会断续，运行时另有下限保护
+    playback_buffer_ms: int = Field(default=280, ge=60, le=600)
 
 
 class RealtimeSettings(BaseModel):

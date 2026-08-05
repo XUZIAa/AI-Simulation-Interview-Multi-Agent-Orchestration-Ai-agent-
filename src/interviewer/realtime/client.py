@@ -83,10 +83,13 @@ class RealtimeClient:
             device_name=audio.input_device,
             gain=audio.input_gain,
         )
+        # 起播水位低于 220ms 在实时语音下必然断续，这里兜个下限
+        prefill = max(220, audio.playback_buffer_ms)
         self._player = AudioPlayer(
             sample_rate=provider.output_sample_rate,
             device_name=audio.output_device,
-            buffer_ms=audio.playback_buffer_ms,
+            prefill_ms=prefill,
+            refill_ms=max(120, prefill // 2),
         )
         self._echo_gate = EchoGate(
             self._player,

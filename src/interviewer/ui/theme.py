@@ -235,6 +235,23 @@ QPushButton#Ghost:hover {{
 }}
 QPushButton#Ghost:pressed {{ background-color: {c.SURFACE_ACTIVE}; }}
 
+QPushButton#Choice {{
+    background-color: {c.SURFACE};
+    border: 1px solid {c.BORDER_STRONG};
+    color: {c.TEXT_MUTED};
+    padding: 0 16px;
+}}
+QPushButton#Choice:hover {{
+    background-color: {c.SURFACE_HOVER};
+    border-color: {c.TEXT_FAINT};
+    color: {c.TEXT};
+}}
+QPushButton#Choice:checked {{
+    background-color: {c.PRIMARY_SOFT};
+    border: 1px solid {c.PRIMARY};
+    color: {c.PRIMARY_TEXT};
+}}
+
 QPushButton#Link {{
     background: transparent;
     border: none;

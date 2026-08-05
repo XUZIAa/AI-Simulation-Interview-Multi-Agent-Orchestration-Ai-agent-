@@ -155,6 +155,7 @@ class PrepareService:
                 level=level,
                 minutes=minutes,
                 coding_enabled=coding_enabled,
+                on_step=on_progress,
             )
 
         on_progress("正在创建面试记录", 80)

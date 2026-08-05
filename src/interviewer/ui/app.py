@@ -40,16 +40,20 @@ def _configure(app: QApplication) -> None:
 
 
 async def _lifecycle(context: AppContext, window: MainWindow, closed: asyncio.Event) -> None:
+    """启动失败在此清理；正常退出的清理交给窗口关闭流程。
+
+    退出清理不能放在这里的 finally：那时 aboutToQuit 已经触发、
+    事件循环正在收尾，httpx 关连接池会抛 anyio.NoEventLoopError。
+    """
     try:
         await context.initialize()
         await window.post_init()
-        logger.info("界面初始化完成，进入主循环")
-        await closed.wait()
     except BaseException:
-        logger.exception("应用运行期发生未捕获异常")
-        raise
-    finally:
+        logger.exception("应用启动失败")
         await context.shutdown()
+        raise
+    logger.info("界面初始化完成，进入主循环")
+    await closed.wait()
 
 
 def run() -> int:

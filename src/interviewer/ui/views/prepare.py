@@ -20,10 +20,12 @@ from PySide6.QtWidgets import (
 
 from ...app.async_utils import spawn
 from ...app.context import AppContext
+from ...core.providers_catalog import model_traits
 from ...core.types import CompanyTier, GapSeverity, JobLevel
 from ...data.repositories.library_repo import StoredGap, StoredJob, StoredResume
 from ...domain.persona import PersonaContract
 from ...domain.resume import GapReport
+from ...llm.router import ROLE_ANALYST
 from ..navigation import Navigator
 from ..theme import Color
 from ..widgets.charts import ScoreRing
@@ -85,6 +87,7 @@ class PrepareView(QWidget):
         self._gap: StoredGap | None = None
         self._minutes = 30
         self._pending_persona = ""
+        self._slow_warned = False
         self._build()
 
     def _build(self) -> None:
@@ -232,7 +235,9 @@ class PrepareView(QWidget):
         self._dur_group.setExclusive(True)
         for minutes in _DURATIONS:
             btn = QPushButton(f"{minutes} 分钟")
+            btn.setObjectName("Choice")
             btn.setCheckable(True)
+            btn.setChecked(minutes == self._minutes)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setMinimumHeight(40)
             btn.clicked.connect(lambda _=False, m=minutes: self._set_minutes(m))
@@ -283,6 +288,21 @@ class PrepareView(QWidget):
 
     def on_show(self) -> None:
         spawn(self._load_lists(), context="加载准备资料")
+        self._warn_slow_model()
+
+    def _warn_slow_model(self) -> None:
+        """推理模型跑解析和出题会慢到分钟级，进页面就先讲清楚，别让人干等。"""
+        if self._slow_warned:
+            return
+        model = self._ctx.config.settings.chat_model(ROLE_ANALYST)
+        if not model_traits(model).reasoning:
+            return
+        self._slow_warned = True
+        self._nav.toast(
+            f"分析师用的是推理模型 {model}，解析简历与出题每步都要数分钟。"
+            "到「设置」换成 deepseek-chat 会快很多。",
+            kind="warning",
+        )
 
     def preselect_persona(self, contract: PersonaContract) -> None:
         """从工作台"快速开始"进来时带上指定面试官，列表可能还没加载完，先挂起。"""

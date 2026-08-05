@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar
+from typing import Any, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..core.types import GapSeverity, InterviewPhase
 from ..domain.resume import (
@@ -16,6 +16,7 @@ from ..domain.resume import (
 )
 from ..llm import prompts
 from ..llm.base import system, user
+from ..llm.coerce import as_number, as_object_list, as_text, as_text_list
 from ..llm.router import ROLE_ANALYST
 from .base import Agent
 
@@ -30,6 +31,38 @@ _PHASE_KEYS: dict[str, InterviewPhase] = {
 }
 
 
+class _ProjectRaw(BaseModel):
+    """项目条目的宽松版本。name 在领域模型里是必填，这里先收进来再过滤。"""
+
+    name: str = ""
+    role: str = ""
+    stack: list[str] = Field(default_factory=list)
+    impact: str = ""
+    summary: str = ""
+
+    @field_validator("name", "role", "impact", "summary", mode="before")
+    @classmethod
+    def _text(cls, value: Any) -> str:
+        return as_text(value)
+
+    @field_validator("stack", mode="before")
+    @classmethod
+    def _list(cls, value: Any) -> list[str]:
+        return as_text_list(value)
+
+    def to_domain(self) -> ProjectHighlight | None:
+        name = self.name.strip()
+        if not name:
+            return None
+        return ProjectHighlight(
+            name=name,
+            role=self.role,
+            stack=self.stack[:10],
+            impact=self.impact,
+            summary=self.summary,
+        )
+
+
 class _ResumeRaw(BaseModel):
     candidate_name: str = ""
     years_of_experience: float = 0.0
@@ -37,7 +70,27 @@ class _ResumeRaw(BaseModel):
     education: str = ""
     skills: list[str] = Field(default_factory=list)
     self_claims: list[str] = Field(default_factory=list)
-    projects: list[ProjectHighlight] = Field(default_factory=list)
+    projects: list[_ProjectRaw] = Field(default_factory=list)
+
+    @field_validator("candidate_name", "current_title", "education", mode="before")
+    @classmethod
+    def _text(cls, value: Any) -> str:
+        return as_text(value)
+
+    @field_validator("skills", "self_claims", mode="before")
+    @classmethod
+    def _list(cls, value: Any) -> list[str]:
+        return as_text_list(value)
+
+    @field_validator("years_of_experience", mode="before")
+    @classmethod
+    def _number(cls, value: Any) -> float:
+        return as_number(value)
+
+    @field_validator("projects", mode="before")
+    @classmethod
+    def _objects(cls, value: Any) -> list[dict[str, Any]]:
+        return as_object_list(value)
 
 
 class _JobRaw(BaseModel):
@@ -87,7 +140,7 @@ class ResumeAgent(Agent):
             years_of_experience=max(0.0, parsed.years_of_experience),
             current_title=parsed.current_title.strip(),
             skills=_unique(parsed.skills)[:40],
-            projects=parsed.projects[:6],
+            projects=[p for p in (raw.to_domain() for raw in parsed.projects) if p][:6],
             education=parsed.education.strip(),
             self_claims=[c.strip() for c in parsed.self_claims if c.strip()][:10],
         )

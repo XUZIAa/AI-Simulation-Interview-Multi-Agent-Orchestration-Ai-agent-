@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from ..core.providers_catalog import model_traits
 from ..core.types import MAX_DEPTH, CompanyTier, JobLevel, QuestionSource
 from ..domain.company import company_profile, level_expectation
 from ..domain.question_bank import BankQuestion, QuestionBank
@@ -113,6 +115,7 @@ class BankBuilder(Agent):
         level: JobLevel,
         minutes: int,
         coding_enabled: bool,
+        on_step: Callable[[str, int], None] | None = None,
     ) -> QuestionBank:
         context = prompts.bank_user_prompt(
             jd_digest=job.compact(1600),
@@ -124,8 +127,14 @@ class BankBuilder(Agent):
             minutes=minutes,
         )
 
+        # 两次调用各自报进度，否则界面会停在同一个百分比让人以为卡死
+        step = on_step or (lambda _s, _p: None)
+        slow = "（推理模型逐字思考，这一步可能要数分钟）" if model_traits(self.client.model).reasoning else ""
+        step(f"正在出技术题 1/2{slow}", 40)
         tech = await self._generate(prompts.BANK_TECH_SYSTEM, context, max_tokens=9000)
+        step(f"正在出行为题与编码题 2/2{slow}", 62)
         soft = await self._generate(prompts.BANK_SOFT_SYSTEM, context, max_tokens=5000)
+        step("正在整理题库", 74)
 
         questions: list[BankQuestion] = []
         next_id = 1

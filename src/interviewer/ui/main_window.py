@@ -9,6 +9,7 @@ from PySide6.QtCore import (
     QTimer,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
@@ -174,6 +175,7 @@ class MainWindow(AppWindow):
         self._ctx = context
         self.setMinimumSize(880, 620)
 
+        self._shutting_down = False
         self._nav_buttons: dict[Page, NavItem] = {}
         self._build_ui()
         self._toast = Toast(self.content_host())
@@ -341,6 +343,20 @@ class MainWindow(AppWindow):
             self._toast._reposition()
 
     def closeEvent(self, event) -> None:
-        if self._ctx.engine.running:
-            spawn(self._ctx.engine.stop(aborted=True), context="结束面试")
-        super().closeEvent(event)
+        """先在事件循环仍活跃时把清理做完，再真正退出。"""
+        if self._shutting_down:
+            event.accept()
+            return
+        event.ignore()
+        self._shutting_down = True
+        spawn(self._graceful_exit(), context="退出清理")
+
+    async def _graceful_exit(self) -> None:
+        try:
+            if self._ctx.engine.running:
+                await self._ctx.engine.stop(aborted=True)
+            await self._ctx.shutdown()
+        except Exception:
+            logger.exception("退出清理失败")
+        finally:
+            QApplication.quit()

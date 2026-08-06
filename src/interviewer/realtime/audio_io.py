@@ -183,7 +183,7 @@ class AudioPlayer:
         self._device = _resolve_device(device_name, want_input=False)
         self._blocksize = max(160, int(sample_rate * block_ms / 1000))
         self._capacity = max(self._blocksize * 8, int(sample_rate * capacity_ms / 1000))
-        self._prefill = int(sample_rate * prefill_ms / 1000)
+        self._prefill = int(sample_rate * max(prefill_ms, refill_ms) / 1000)
         self._refill = int(sample_rate * refill_ms / 1000)
         self._buffer = np.zeros(self._capacity, dtype=np.int16)
         self._read = 0

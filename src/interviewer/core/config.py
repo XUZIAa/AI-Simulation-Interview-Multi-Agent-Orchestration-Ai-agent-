@@ -31,12 +31,15 @@ class AudioSettings(BaseModel):
     input_device: str = ""
     output_device: str = ""
     input_gain: float = Field(default=1.0, ge=0.2, le=4.0)
-    vad_threshold: float = Field(default=0.42, ge=0.05, le=0.95)
+    # 阈值偏高会导致服务端听不到说话；宁可略灵敏，配合语义打断过滤附和声
+    vad_threshold: float = Field(default=0.28, ge=0.05, le=0.95)
     silence_duration_ms: int = Field(default=620, ge=200, le=2000)
     prefix_padding_ms: int = Field(default=300, ge=0, le=1000)
     semantic_vad: bool = True
-    # 起播蓄水水位。低于 220ms 实时语音会断续，运行时另有下限保护
-    playback_buffer_ms: int = Field(default=280, ge=60, le=600)
+    # 仅外放时需要：抑制扬声器回流。戴耳机时开启反而可能误杀真人语音
+    echo_guard: bool = False
+    # 首句起播蓄水水位。给小了前半句会断续，运行时另有 320ms 下限保护
+    playback_buffer_ms: int = Field(default=400, ge=60, le=900)
 
 
 class RealtimeSettings(BaseModel):

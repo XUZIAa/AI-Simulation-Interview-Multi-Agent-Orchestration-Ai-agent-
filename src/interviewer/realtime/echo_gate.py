@@ -21,12 +21,20 @@ class EchoGate:
     据此判定是否把该帧送上行，避免面试官被自己的声音打断。
     """
 
-    def __init__(self, player: AudioPlayer, *, capture_rate: int, player_rate: int) -> None:
+    def __init__(
+        self,
+        player: AudioPlayer,
+        *,
+        capture_rate: int,
+        player_rate: int,
+        enabled: bool = False,
+    ) -> None:
         self._player = player
         self._capture_rate = capture_rate
         self._player_rate = player_rate
         self._ref_samples = int(player_rate * _MAX_DELAY_MS / 1000)
-        self._enabled = True
+        # 默认关闭：戴耳机时没有回声，而误判的后果是候选人完全说不上话
+        self._enabled = enabled
         self._suppressed_frames = 0
 
     @property

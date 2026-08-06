@@ -10,7 +10,7 @@ from typing import Any
 from ..agents.director import Director
 from ..agents.guard import Guard, repair_directive
 from ..agents.live_agents import CodeExaminer, Copilot, StarAnalyst
-from ..core.config import ConfigStore
+from ..core.config import AudioSettings, ConfigStore
 from ..core.errors import InterviewerError, RealtimeError
 from ..core.events import (
     AudioLevel,
@@ -153,9 +153,26 @@ class InterviewEngine:
         # 否则这半秒会白算在第一轮导演决策的等待里
         self._spawn(self._warm_models())
 
+        self._warn_audio_config(settings.audio)
         self._bus.emit(PhaseChanged(phase=state.phase, reason="面试开始"))
         await self._client.send_directive(anchor.opening_directive(state.persona))
         logger.info("面试开始 session=%s persona=%s", state.session_id, state.persona.name)
+
+    def _warn_audio_config(self, audio: AudioSettings) -> None:
+        """阈值偏高会让服务端听不到说话，而已保存的旧配置不会因为改默认值而更新。"""
+        if audio.vad_threshold > 0.35:
+            logger.warning("人声灵敏度偏高：%.2f，服务端可能判定为静音", audio.vad_threshold)
+            self._bus.emit(
+                EngineFailure(
+                    user_message=(
+                        f"人声灵敏度当前 {audio.vad_threshold:.2f} 偏高，"
+                        "若面试官听不到你说话，去「设置 → 音频」调到 0.30 以下"
+                    ),
+                    fatal=False,
+                )
+            )
+        if audio.echo_guard:
+            logger.info("回声门控已开启（外放模式）")
 
     async def _warm_models(self) -> None:
         async def ping(role: str) -> None:

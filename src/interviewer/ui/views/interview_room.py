@@ -133,6 +133,9 @@ class InterviewRoomView(QWidget):
         self._unsubs: list = []
         self._phase_label = "开场破冰"
         self._confirm_end = False
+        self._connected = False
+        self._hearing = False
+        self._talking = False
         self._build()
 
     def _build(self) -> None:
@@ -315,8 +318,11 @@ class InterviewRoomView(QWidget):
         self._transcript.clear()
         self._stage.name.setText(state.persona.name)
         self._stage.caption.setText("正在接通…")
+        self._connected = False
+        self._hearing = False
+        self._talking = False
         self._conn.setText("● 接通中")
-        self._conn.setStyleSheet(f"color: {Color.WARNING}; font-size: 12px;")
+        self._conn.setStyleSheet(f"color: {Color.WARNING}; font-size: 12px; font-weight: 600;")
         self._elapsed.setText("00:00")
         self._remaining.setText(f"剩余 {_mmss(state.plan.total_ms)}")
         self._phase_label = InterviewPhase.WARMUP.label
@@ -374,16 +380,15 @@ class InterviewRoomView(QWidget):
     # ==================================================================
 
     def _on_conn(self, event: RealtimeStateChanged) -> None:
+        self._connected = event.connected
         if event.connected:
-            self._conn.setText("● 已接通")
-            self._conn.setStyleSheet(f"color: {Color.SUCCESS}; font-size: 12px;")
             self._stage.caption.setText("面试开始")
-        else:
-            self._conn.setText("● 连接断开")
-            self._conn.setStyleSheet(f"color: {Color.DANGER}; font-size: 12px;")
+        self._render_link()
 
     def _on_speech(self, event: SpeechActivity) -> None:
         self._camera_frame.set_active(event.speaking)
+        self._hearing = event.speaking
+        self._render_link()
 
     def _on_level(self, event: AudioLevel) -> None:
         self._camera.set_level(event.candidate)
@@ -391,6 +396,22 @@ class InterviewRoomView(QWidget):
         speaking = event.interviewer > 0.02
         self._stage.orb.set_active(speaking)
         self._stage_frame.set_active(speaking)
+        if speaking != self._talking:
+            self._talking = speaking
+            self._render_link()
+
+    def _render_link(self) -> None:
+        """把链路状态说清楚：能立刻看出服务端有没有听到自己说话。"""
+        if not self._connected:
+            text, color = "● 连接断开", Color.DANGER
+        elif self._hearing:
+            text, color = "● 正在听你说", Color.CANDIDATE
+        elif self._talking:
+            text, color = "● 面试官在说", Color.INTERVIEWER
+        else:
+            text, color = "● 已接通", Color.SUCCESS
+        self._conn.setText(text)
+        self._conn.setStyleSheet(f"color: {color}; font-size: 12px; font-weight: 600;")
 
     def _on_delta(self, event: TranscriptDelta) -> None:
         speaker = Speaker(event.speaker)

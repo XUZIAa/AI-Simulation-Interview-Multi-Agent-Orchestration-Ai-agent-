@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlencode
 
@@ -22,6 +23,27 @@ from .echo_gate import EchoGate
 logger = logging.getLogger(__name__)
 
 _MAX_MESSAGE = 24 * 1024 * 1024
+_STATS_INTERVAL = 5.0
+
+
+@dataclass
+class _LinkStats:
+    """上下行链路计数，用于定位「说话没反应」卡在哪一环。"""
+
+    sent: int = 0
+    gated: int = 0
+    peak: float = 0.0
+    speech_started: int = 0
+    speech_stopped: int = 0
+    transcripts: int = 0
+
+    def reset(self) -> None:
+        self.sent = 0
+        self.gated = 0
+        self.peak = 0.0
+        self.speech_started = 0
+        self.speech_stopped = 0
+        self.transcripts = 0
 
 
 class RealtimeSink(Protocol):
@@ -83,19 +105,22 @@ class RealtimeClient:
             device_name=audio.input_device,
             gain=audio.input_gain,
         )
-        # 起播水位低于 220ms 在实时语音下必然断续，这里兜个下限
-        prefill = max(220, audio.playback_buffer_ms)
+        # 首句水位要足：起播后数据流还不稳，水位低会被反复抽干，
+        # 表现为「前半句听不清、后半句正常」
+        prefill = max(320, audio.playback_buffer_ms)
         self._player = AudioPlayer(
             sample_rate=provider.output_sample_rate,
             device_name=audio.output_device,
             prefill_ms=prefill,
-            refill_ms=max(120, prefill // 2),
+            refill_ms=max(180, prefill // 2),
         )
         self._echo_gate = EchoGate(
             self._player,
             capture_rate=provider.input_sample_rate,
             player_rate=provider.output_sample_rate,
+            enabled=audio.echo_guard,
         )
+        self._stats = _LinkStats()
 
         self._ws: ClientConnection | None = None
         self._tasks: list[asyncio.Task[None]] = []
@@ -157,6 +182,7 @@ class RealtimeClient:
         self._tasks = [
             asyncio.create_task(self._recv_loop(), name="realtime-recv"),
             asyncio.create_task(self._send_loop(), name="realtime-send"),
+            asyncio.create_task(self._stats_loop(), name="realtime-stats"),
         ]
         self._sink.on_state(True, "")
         logger.info("实时会话建立 model=%s voice=%s", self._model, self._voice)
@@ -241,8 +267,11 @@ class RealtimeClient:
         try:
             while True:
                 frame = await self._capture.read()
+                self._stats.peak = max(self._stats.peak, self._capture.level)
                 if self._echo_gate.is_echo(frame):
+                    self._stats.gated += 1
                     continue
+                self._stats.sent += 1
                 self._sink.on_candidate_audio(frame, self._clock())
                 await self._send(proto.audio_append(base64.b64encode(frame).decode("ascii")))
         except asyncio.CancelledError:
@@ -252,6 +281,29 @@ class RealtimeClient:
         except Exception as exc:
             logger.exception("上行循环异常")
             self._sink.on_error(f"音频上行中断: {exc}", fatal=True)
+
+    async def _stats_loop(self) -> None:
+        """周期性汇报链路状态。
+
+        「说话没反应」可能卡在采集、门控、上行或服务端 VAD，
+        没有这些数字只能靠猜。
+        """
+        while True:
+            await asyncio.sleep(_STATS_INTERVAL)
+            s = self._stats
+            logger.info(
+                "链路 %ds：上行 %d 帧，门控丢弃 %d，采集峰值 %.3f｜服务端：语音开始 %d，结束 %d，转写 %d",
+                int(_STATS_INTERVAL),
+                s.sent,
+                s.gated,
+                s.peak,
+                s.speech_started,
+                s.speech_stopped,
+                s.transcripts,
+            )
+            if s.sent > 0 and s.speech_started == 0 and s.peak < 0.04:
+                logger.warning("采集电平过低（峰值 %.3f），服务端可能判定为静音。请提高麦克风增益", s.peak)
+            s.reset()
 
     # ---------- 下行 ----------
 
@@ -281,6 +333,7 @@ class RealtimeClient:
         kind = event.get("type", "")
 
         if kind == proto.SPEECH_STARTED:
+            self._stats.speech_started += 1
             self._candidate_start_ms = self._clock()
             self._candidate_buffer = ""
             self._sink.on_candidate_speech(True)
@@ -292,6 +345,7 @@ class RealtimeClient:
             return
 
         if kind == proto.SPEECH_STOPPED:
+            self._stats.speech_stopped += 1
             self._sink.on_candidate_speech(False)
             return
 
@@ -306,6 +360,8 @@ class RealtimeClient:
             text = (event.get("transcript") or self._candidate_buffer).strip()
             started = self._candidate_start_ms
             self._candidate_buffer = ""
+            self._stats.transcripts += 1
+            logger.info("候选人转写完成 %d 字: %s", len(text), text[:60] or "(空)")
             if text:
                 self._sink.on_candidate_text(
                     text,

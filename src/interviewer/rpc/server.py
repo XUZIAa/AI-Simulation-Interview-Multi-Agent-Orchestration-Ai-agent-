@@ -11,6 +11,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
@@ -26,6 +27,17 @@ _LOOPBACK = "127.0.0.1"
 _HANDSHAKE_PREFIX = "INTERVIEWER_RPC "
 _OPEN_PATHS = frozenset({"/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"})
 
+# 桌面前端跑在 WebView 里，向本机端口发请求属于跨域，必须显式放行来源。
+# 开发态是 Vite 的地址，打包态由 Tauri 提供。真正的门禁是 token，这里只是
+# 让浏览器的同源策略不要提前掐断请求。
+_ALLOWED_ORIGINS = (
+    "http://localhost:1420",
+    "http://127.0.0.1:1420",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+    "tauri://localhost",
+)
+
 
 class TokenGuard(BaseHTTPMiddleware):
     """本机回环也不等于可信：同机任何进程都能连上来。
@@ -39,7 +51,8 @@ class TokenGuard(BaseHTTPMiddleware):
         self._token = token
 
     async def dispatch(self, request: Any, call_next: Any) -> Any:
-        if request.url.path in _OPEN_PATHS:
+        # 预检请求不带自定义头，拦下它等于让所有跨域调用直接失败
+        if request.method == "OPTIONS" or request.url.path in _OPEN_PATHS:
             return await call_next(request)
         supplied = request.headers.get("x-interviewer-token") or request.query_params.get("token")
         if not supplied or not secrets.compare_digest(supplied, self._token):
@@ -57,6 +70,13 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.state.hub = EventHub(ctx.bus)
     app.state.token = token
     app.add_middleware(TokenGuard, token=token)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(_ALLOWED_ORIGINS),
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["X-Interviewer-Token", "Content-Type"],
+        max_age=600,
+    )
     app.add_exception_handler(InterviewerError, interviewer_error_handler)
     app.include_router(router)
 

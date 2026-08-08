@@ -103,7 +103,11 @@ export default function App() {
     // 浏览器里没有 Tauri 运行时，监听它的事件会直接抛错
     const offLog = inTauri()
       ? listen<string>("backend-log", (ev) => {
-          setEventLog((prev) => [`后端日志 ${ev.payload}`, ...prev].slice(0, 6));
+          // uvicorn 的启动横幅没有诊断价值，只留业务与告警
+          const line = ev.payload;
+          if (/uvicorn|Started server|Waiting for|Application startup/.test(line)) return;
+          const brief = line.replace(/^\d{4}-\d{2}-\d{2} [\d:,]+\s+/, "");
+          setEventLog((prev) => [brief, ...prev].slice(0, 6));
         })
       : null;
     return () => {
@@ -120,25 +124,27 @@ export default function App() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-background">
-      <div className="mx-auto max-w-5xl space-y-6 p-8">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">工作台</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              新界面骨架已接通后端，正在逐页迁移
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusPill ok={wsOpen} label={wsOpen ? "事件通道已连接" : "事件通道断开"} />
-            <Button variant="outline" size="sm" onClick={() => void boot()}>
-              <RefreshCw />
-              刷新
-            </Button>
-          </div>
-        </header>
+    <div className="bg-background flex h-full flex-col">
+      {/* 标题栏不进滚动容器：跟着内容滚会在首屏被裁掉 */}
+      <header className="bg-background/80 flex shrink-0 items-center justify-between gap-4 border-b px-8 py-5 backdrop-blur">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold tracking-tight">工作台</h1>
+          <p className="text-muted-foreground mt-0.5 truncate text-sm">
+            新界面骨架已接通后端，正在逐页迁移
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusPill ok={wsOpen} label={wsOpen ? "已连接" : "已断开"} />
+          <Button variant="outline" size="sm" onClick={() => void boot()}>
+            <RefreshCw />
+            刷新
+          </Button>
+        </div>
+      </header>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-5xl space-y-5 p-8">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="累计面试" value={stats ? `${stats.total_sessions}` : "-"} unit="场" />
           <Metric label="已完成" value={stats ? `${stats.completed_sessions}` : "-"} unit="场" />
           <Metric label="累计时长" value={stats ? `${stats.total_minutes}` : "-"} unit="分钟" />
@@ -229,6 +235,7 @@ export default function App() {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ hidden = [
 ]
 
 a = Analysis(
-    ["src/interviewer/backend.py"],
+    ["backend_main.py"],
     pathex=["src"],
     binaries=[],
     datas=[],

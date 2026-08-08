@@ -93,6 +93,9 @@ pub async fn launch(app: AppHandle) -> Result<BackendInfo, String> {
             .command("uv")
             .args(["run", "python", "-m", "interviewer.backend", "--port", "0"])
             .current_dir(project_root)
+            // Windows 上 Python 的标准流默认走 GBK，这边按 UTF-8 读会得到乱码
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
     } else {
         // 后端带着 numpy、sounddevice 等一堆动态库，只能以目录形态分发：
         // 单文件模式每次启动都要解压，会白等好几秒。
@@ -109,6 +112,8 @@ pub async fn launch(app: AppHandle) -> Result<BackendInfo, String> {
             .command(exe.to_string_lossy().to_string())
             .args(["--port", "0"])
             .current_dir(dir)
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
     };
 
     let (mut rx, child) = command

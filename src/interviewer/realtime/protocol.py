@@ -47,18 +47,17 @@ def session_update(
     max_output_tokens: int = 4096,
 ) -> dict[str, Any]:
     """会话配置。instructions 是人格锚点，每次重锚都整体重发。"""
-    # create_response=False 是关键：服务端只做断句，发言权由导演授予
-    turn_detection: dict[str, Any] = (
-        {"type": "semantic_vad", "create_response": False}
-        if semantic_vad
-        else {
-            "type": "server_vad",
-            "threshold": vad_threshold,
-            "silence_duration_ms": silence_duration_ms,
-            "prefix_padding_ms": prefix_padding_ms,
-            "create_response": False,
-        }
-    )
+    # 服务端只许做断句与转写，两种自动行为都要关掉：
+    # create_response 会绕过导演自己回话，interrupt_response 会在麦克风
+    # 一有动静时掐掉正在生成的响应——底噪就足以触发，面试官会一句话都说不出。
+    turn_detection: dict[str, Any] = {
+        "type": "semantic_vad" if semantic_vad else "server_vad",
+        "threshold": vad_threshold,
+        "silence_duration_ms": silence_duration_ms,
+        "prefix_padding_ms": prefix_padding_ms,
+        "create_response": False,
+        "interrupt_response": False,
+    }
     return {
         "type": SESSION_UPDATE,
         "session": {
@@ -76,6 +75,16 @@ def session_update(
 
 def audio_append(audio_b64: str) -> dict[str, Any]:
     return {"type": AUDIO_APPEND, "audio": audio_b64}
+
+
+def audio_clear() -> dict[str, Any]:
+    """丢弃尚未提交的输入音频。
+
+    候选人的话早在转写完成时就拿到了，缓冲区里剩的是导演思考那几秒采到的
+    环境噪音。带着它请求响应，服务端会一直等这轮输入收尾——而底噪没有明确
+    的语音起止，就等成了死局。
+    """
+    return {"type": AUDIO_CLEAR}
 
 
 def system_note(text: str) -> dict[str, Any]:

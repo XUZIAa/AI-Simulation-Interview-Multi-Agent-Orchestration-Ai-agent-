@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 
 from ..core.config import ConfigStore, config_store
-from .base import ChatClient
+from .base import ChatClient, user
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,20 @@ class LLMRouter:
         self._clients[key] = client
         logger.info("创建模型客户端 role=%s provider=%s model=%s", role, catalog.key, model)
         return client
+
+    async def warm(self, *roles: str) -> None:
+        """预建客户端与 TLS 连接。
+
+        首次调用要加载模块、握手、建连接池，这些是同步 CPU 开销。压在语音链路
+        启动之后会抢占事件循环，音频上行与播放推送都会被拖慢，听感就是开场
+        几秒一卡一卡。放在还没有音频的准备阶段做，等的是同一份时间但无感。
+        """
+
+        async def ping(role: str) -> None:
+            with contextlib.suppress(Exception):
+                await self.client(role).complete([user("hi")], max_tokens=1, temperature=0.0)
+
+        await asyncio.gather(*(ping(role) for role in roles))
 
     async def invalidate(self) -> None:
         clients = list(self._clients.values())

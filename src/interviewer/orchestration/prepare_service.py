@@ -17,7 +17,7 @@ from ..domain.persona import PersonaContract
 from ..domain.question_bank import QuestionBank
 from ..domain.resume import JobDescription
 from ..ingest.documents import read_document
-from ..llm.router import LLMRouter
+from ..llm.router import ROLE_ASSIST, ROLE_DIRECTOR, ROLE_GUARD, LLMRouter
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ class PrepareService:
         sessions: SessionRepository,
         personas: PersonaRepository,
     ) -> None:
+        self._router = router
         self._resume_agent = ResumeAgent(router)
         self._job_synth = JobSynthesizer(router)
         self._bank_builder = BankBuilder(router)
@@ -185,6 +186,11 @@ class PrepareService:
             pending_skills=list(gap_report.focus_skills) if gap_report else bank.skills()[:8],
         )
         await self._sessions.persist_state(state)
+
+        # 趁这里还没有音频链路，把面试中要用的模型连接全部建好
+        on_progress("正在预热模型链路", 95)
+        await self._router.warm(ROLE_DIRECTOR, ROLE_ASSIST, ROLE_GUARD)
+
         on_progress("准备完成", 100)
         logger.info(
             "面试已准备 session=%s 题库=%d 计划=%d分钟", session_id, len(bank.questions), minutes

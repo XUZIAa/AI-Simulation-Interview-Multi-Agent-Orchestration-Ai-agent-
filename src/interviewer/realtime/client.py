@@ -239,6 +239,8 @@ class RealtimeClient:
         """下发导演指令。只有这条路径能授予发言权。"""
         await self._send(proto.system_note(text))
         if request_response:
+            # 先把残留的输入音频清掉，服务端才会立刻着手这次响应而不是继续等输入
+            await self._send(proto.audio_clear())
             self._authorized = True
             await self._send(proto.response_create())
 

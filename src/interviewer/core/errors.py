@@ -52,3 +52,7 @@ class ResumeParseError(InterviewerError):
 
 class StateTransitionError(InterviewerError):
     user_message = "当前阶段不允许该操作"
+
+
+class InterviewBusyError(InterviewerError):
+    user_message = "已有面试正在进行，请先结束当前面试再开始新的一场"

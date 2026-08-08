@@ -36,9 +36,6 @@ class AudioSettings(BaseModel):
     silence_duration_ms: int = Field(default=620, ge=200, le=2000)
     prefix_padding_ms: int = Field(default=300, ge=0, le=1000)
     semantic_vad: bool = True
-    # 抑制扬声器回流。外放时必需，否则面试官会被自己的声音打断；
-    # 戴耳机时它也不会误杀——真人语音与播放内容不相关，相关性判定不会命中
-    echo_guard: bool = True
     auto_gain: bool = True
     # 上次学到的自动增益。同一台机器的麦克风增益需求稳定，记下来省去下次爬坡。
     # 这是运行时学习值，历史值越界只能钳制、绝不能让整份配置验证失败

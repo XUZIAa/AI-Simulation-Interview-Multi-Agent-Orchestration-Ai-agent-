@@ -21,8 +21,9 @@ from PySide6.QtWidgets import (
 from ...app.async_utils import spawn
 from ...app.context import AppContext
 from ...core.providers_catalog import model_traits
-from ...core.types import CompanyTier, GapSeverity, JobLevel
+from ...core.types import CompanyTier, GapSeverity, JobLevel, SessionStatus
 from ...data.repositories.library_repo import StoredGap, StoredJob, StoredResume
+from ...domain.interview import InterviewState
 from ...domain.persona import PersonaContract
 from ...domain.resume import GapReport
 from ...llm.router import ROLE_ANALYST
@@ -88,6 +89,9 @@ class PrepareView(QWidget):
         self._minutes = 30
         self._pending_persona = ""
         self._slow_warned = False
+        # 已生成待用的题库。出题要花几十秒，进房间失败后不该让人再等一遍
+        self._built: tuple[str, InterviewState] | None = None
+        self._building = False
         self._build()
 
     def _build(self) -> None:
@@ -288,7 +292,21 @@ class PrepareView(QWidget):
 
     def on_show(self) -> None:
         spawn(self._load_lists(), context="加载准备资料")
+        spawn(self._drop_used_build(), context="校验已生成题库")
         self._warn_slow_model()
+
+    async def _drop_used_build(self) -> None:
+        """已经开过的场次不能复用：那一场的题库连同记录都属于它自己。
+
+        启动失败会把状态回滚成 DRAFT，这种才是真正没用过、可以直接再进的。
+        """
+        built = self._built
+        if built is None:
+            return
+        status = await self._ctx.sessions.status(built[1].session_id)
+        if status is not SessionStatus.DRAFT:
+            self._built = None
+            self._refresh_gates()
 
     def _warn_slow_model(self) -> None:
         """推理模型跑解析和出题会慢到分钟级，进页面就先讲清楚，别让人干等。"""
@@ -600,11 +618,38 @@ class PrepareView(QWidget):
     def _refresh_gates(self) -> None:
         self._diag_btn.setEnabled(self._resume is not None and self._job is not None)
         ready = self._resume is not None and self._job is not None and self._persona_combo.count() > 0
-        self._start_btn.setEnabled(ready)
-        if ready:
-            self._launch_status.setText("准备就绪，可以开始了。")
-        else:
+        # 出题期间必须一直压着按钮：这个方法会被列表刷新、重进本页等多条路径调到，
+        # 无条件放开就等于允许再点一次，于是同一份资料被并发出题、多创建一场会话
+        self._start_btn.setEnabled(ready and not self._building)
+        if self._building:
+            return
+        if not ready:
             self._launch_status.setText("需要先备好简历、岗位与面试官。")
+        elif self._built is not None:
+            self._launch_status.setText("题库已生成，点「开始面试」直接进入。")
+        else:
+            self._launch_status.setText("资料齐了，点「开始面试」会先生成题库，约需一分钟。")
+
+    def _fingerprint(
+        self,
+        persona: PersonaContract,
+        resume: StoredResume,
+        job: StoredJob,
+        tier: CompanyTier,
+        level: JobLevel,
+        coding: bool,
+    ) -> str:
+        """题库复用的判据：这些输入一样，生成的题库就该是同一份。"""
+        parts = (
+            str(persona.id or persona.name),
+            str(resume.id),
+            str(job.id),
+            tier.value,
+            level.value,
+            str(self._minutes),
+            str(int(coding)),
+        )
+        return "|".join(parts)
 
     def _start(self) -> None:
         persona = self._persona_combo.currentData()
@@ -614,10 +659,26 @@ class PrepareView(QWidget):
         level = combo_enum(self._level_combo, JobLevel, JobLevel.MID)
         coding = self._coding_chip.selected
         self._start_btn.setEnabled(False)
+
+        fingerprint = self._fingerprint(persona, self._resume, self._job, tier, level, coding)
+        if self._built is not None and self._built[0] == fingerprint:
+            self._launch(self._built[1])
+            return
+
+        self._building = True
         self._launch_status.setText("正在生成题库并排定流程…")
 
         def progress(stage: str, pct: int) -> None:
             self._launch_status.setText(f"{stage} … {pct}%")
+
+        def ready(state: InterviewState) -> None:
+            self._building = False
+            self._built = (fingerprint, state)
+            self._launch(state)
+
+        def failed(exc: Exception) -> None:
+            self._building = False
+            self._launch_failed(exc)
 
         spawn(
             self._ctx.prepare.build_session(
@@ -630,14 +691,15 @@ class PrepareView(QWidget):
                 coding_enabled=coding,
                 on_progress=progress,
             ),
-            on_success=self._launch,
-            on_error=self._launch_failed,
+            on_success=ready,
+            on_error=failed,
             context="准备面试",
         )
 
-    def _launch(self, state) -> None:
-        self._launch_status.setText("准备就绪，可以开始了。")
-        self._start_btn.setEnabled(True)
+    def _launch(self, state: InterviewState) -> None:
+        # 不在这里恢复按钮：马上就跳进房间了，恢复只会让人以为还要再点一次。
+        # 若房间没起来退回本页，on_show 会重新算门槛并放开按钮。
+        self._launch_status.setText("正在进入面试…")
         self._nav.start_interview(state)
 
     def _launch_failed(self, exc: Exception) -> None:

@@ -72,6 +72,11 @@ class SessionRepository(Repository):
         async with self.db.transaction() as session:
             await session.execute(update(SessionRow).where(SessionRow.id == session_id).values(**values))
 
+    async def status(self, session_id: int) -> SessionStatus | None:
+        async with self.db.session() as session:
+            row = await session.get(SessionRow, session_id)
+            return SessionStatus(row.status) if row is not None else None
+
     async def persist_state(self, state: InterviewState) -> None:
         payload = state.model_dump(mode="json")
         async with self.db.transaction() as session:

@@ -43,7 +43,8 @@ def session_update(
     vad_threshold: float,
     silence_duration_ms: int,
     prefix_padding_ms: int,
-    max_output_tokens: int = 1024,
+    # 音频输出的 token 消耗远高于纯文本，上限给紧了会让面试官说半句就被掐掉
+    max_output_tokens: int = 4096,
 ) -> dict[str, Any]:
     """会话配置。instructions 是人格锚点，每次重锚都整体重发。"""
     # create_response=False 是关键：服务端只做断句，发言权由导演授予

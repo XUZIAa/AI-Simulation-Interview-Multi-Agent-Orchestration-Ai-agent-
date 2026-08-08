@@ -16,10 +16,11 @@ _STREAK_FRAMES = 12  # 命中回声后维持这么多帧的「正在抑制」状
 
 
 class EchoGate:
-    """外放场景下识别扬声器回流。
+    """识别扬声器回流，始终在线。
 
     真人插话与面试官正在播放的内容不相关，回声与之高度相关，
     据此判定是否把该帧送上行，避免面试官被自己的声音打断。
+    戴耳机时麦克风收不到播放内容，相关性判定不会命中，因此无需开关。
     """
 
     def __init__(
@@ -28,22 +29,13 @@ class EchoGate:
         *,
         capture_rate: int,
         player_rate: int,
-        enabled: bool = False,
     ) -> None:
         self._player = player
         self._capture_rate = capture_rate
         self._player_rate = player_rate
         self._ref_samples = int(player_rate * _MAX_DELAY_MS / 1000)
-        self._enabled = enabled
         self._suppressed_frames = 0
         self._streak = 0
-
-    @property
-    def enabled(self) -> bool:
-        return self._enabled
-
-    def set_enabled(self, enabled: bool) -> None:
-        self._enabled = enabled
 
     @property
     def suppressed_frames(self) -> int:
@@ -59,7 +51,7 @@ class EchoGate:
         return self._streak > 0
 
     def is_echo(self, frame: bytes) -> bool:
-        if not self._enabled or self._player.pending_ms <= 0:
+        if self._player.pending_ms <= 0:
             return False
         mic = np.frombuffer(frame, dtype=np.int16)
         if mic.size == 0:

@@ -10,8 +10,8 @@ from typing import Any
 from ..agents.director import Director
 from ..agents.guard import Guard, repair_directive
 from ..agents.live_agents import CodeExaminer, Copilot, StarAnalyst
-from ..core.config import AudioSettings, ConfigStore
-from ..core.errors import InterviewerError, RealtimeError
+from ..core.config import AppSettings, AudioSettings, ConfigStore
+from ..core.errors import InterviewBusyError, InterviewerError, RealtimeError
 from ..core.events import (
     AudioLevel,
     CopilotHint,
@@ -30,6 +30,7 @@ from ..core.events import (
     TranscriptCommitted,
     TranscriptDelta,
 )
+from ..core.providers_catalog import RealtimeProvider
 from ..core.types import InterviewPhase, ScoreDimension, SessionStatus, Speaker, TurnIntent
 from ..data.repositories.session_repo import SessionRepository
 from ..domain.interview import InterviewState
@@ -109,11 +110,10 @@ class InterviewEngine:
 
     async def start(self, state: InterviewState) -> None:
         if self._state is not None:
-            raise InterviewerError("已有面试在进行中")
+            raise InterviewBusyError()
 
         settings = self._store.settings
-        realtime_cfg = settings.realtime
-        catalog = realtime_cfg.catalog()
+        catalog = settings.realtime.catalog()
         api_key = self._store.require_api_key(catalog.credential_key)
 
         self._state = state
@@ -122,7 +122,22 @@ class InterviewEngine:
         self._finished.clear()
         self._started_at = time.monotonic()
         state.enter_phase(InterviewPhase.WARMUP)
+        try:
+            await self._boot(state, settings, catalog, api_key)
+        except Exception:
+            # 起不来就必须把占位彻底还回去。否则引擎永久停在「有面试在进行中」，
+            # 之后每次点开始面试都只会撞上那句错误，而题库还会被重新生成一遍。
+            await self._rollback_start(state)
+            raise
 
+    async def _boot(
+        self,
+        state: InterviewState,
+        settings: AppSettings,
+        catalog: RealtimeProvider,
+        api_key: str,
+    ) -> None:
+        realtime_cfg = settings.realtime
         if settings.features.save_audio:
             self._recorder = SessionRecorder(
                 state.session_id,
@@ -158,6 +173,32 @@ class InterviewEngine:
         await self._client.send_directive(anchor.opening_directive(state.persona))
         logger.info("面试开始 session=%s persona=%s", state.session_id, state.persona.name)
 
+    async def _rollback_start(self, state: InterviewState) -> None:
+        """把 start 已经做出的副作用逐项撤销，让引擎回到可再次开始的空闲态。"""
+        for task in (self._advance_task, self._tick_task):
+            if task is None:
+                continue
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        self._advance_task = None
+        self._tick_task = None
+
+        for task in list(self._side_tasks):
+            task.cancel()
+        self._side_tasks.clear()
+
+        if self._client is not None:
+            with contextlib.suppress(Exception):
+                await self._client.close("启动失败")
+            self._client = None
+        self._recorder = None
+
+        with contextlib.suppress(Exception):
+            await self._sessions.set_status(state.session_id, SessionStatus.DRAFT)
+        self._state = None
+        logger.warning("面试启动失败，已回滚 session=%s", state.session_id)
+
     def _remember_gain(self, gain: float) -> None:
         """记住这台机器的麦克风增益，下次开场不用再爬坡。"""
         settings = self._store.settings
@@ -183,17 +224,7 @@ class InterviewEngine:
                     fatal=False,
                 )
             )
-        if not audio.echo_guard:
-            logger.warning("回声门控已关闭：若使用扬声器外放，面试官会被自己的声音打断")
-            self._bus.emit(
-                EngineFailure(
-                    user_message=(
-                        "回声抑制已关闭。若你在用扬声器外放，"
-                        "请到「设置 → 音频」开启，否则面试官会被自己的声音打断"
-                    ),
-                    fatal=False,
-                )
-            )
+
 
     async def _warm_models(self) -> None:
         async def ping(role: str) -> None:
@@ -789,10 +820,6 @@ class InterviewEngine:
     def set_muted(self, muted: bool) -> None:
         if self._client is not None:
             self._client.capture.set_muted(muted)
-
-    def set_echo_gate(self, enabled: bool) -> None:
-        if self._client is not None:
-            self._client.echo_gate.set_enabled(enabled)
 
     # ------------------------------------------------------------------
     # 后台

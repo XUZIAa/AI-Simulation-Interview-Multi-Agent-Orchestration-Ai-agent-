@@ -125,7 +125,6 @@ class RealtimeClient:
             self._player,
             capture_rate=provider.input_sample_rate,
             player_rate=provider.output_sample_rate,
-            enabled=audio.echo_guard,
         )
         self._stats = _LinkStats()
 
@@ -142,6 +141,8 @@ class RealtimeClient:
         self._interviewer_start_ms = 0
         self._interviewer_buffer = ""
         self._response_start_ms = 0
+        self._response_chunks = 0
+        self._response_chars = 0
 
     # ---------- 状态 ----------
 
@@ -420,6 +421,8 @@ class RealtimeClient:
             self._responding = True
             self._response_id = (event.get("response") or {}).get("id")
             self._response_start_ms = self._clock()
+            self._response_chunks = 0
+            self._response_chars = 0
             self._interviewer_start_ms = self._clock()
             self._interviewer_buffer = ""
             self._sink.on_response(True)
@@ -430,6 +433,7 @@ class RealtimeClient:
             if chunk and self._responding:
                 pcm = base64.b64decode(chunk)
                 self._stats.audio_out += 1
+                self._response_chunks += 1
                 self._player.push(pcm)
                 self._sink.on_interviewer_audio(pcm, self._clock())
             return
@@ -438,6 +442,7 @@ class RealtimeClient:
             piece = event.get("delta") or ""
             if piece and self._responding:
                 self._interviewer_buffer += piece
+                self._response_chars += len(piece)
                 self._sink.on_interviewer_text(piece, final=False)
             return
 
@@ -456,6 +461,20 @@ class RealtimeClient:
         if kind == proto.RESPONSE_DONE:
             self._responding = False
             self._response_id = None
+            # 一句话只说了半截，可能是被打断、被 token 上限截断，也可能本来就说完了。
+            # 三者的处理完全不同，必须把服务端给的结论原样记下来。
+            body = event.get("response") or {}
+            status = str(body.get("status") or "")
+            details = body.get("status_details") or {}
+            reason = str(details.get("reason") or details.get("type") or "")
+            logger.info(
+                "面试官发言结束 音频=%d 块 文本=%d 字 状态=%s%s",
+                self._response_chunks,
+                self._response_chars,
+                status or "未报",
+                f" 原因={reason}" if reason else "",
+            )
+            self._response_chunks = 0
             # 这一轮不会再有音频，让播放器把残留放完而不是继续等水位
             self._player.drain()
             self._sink.on_response(False)

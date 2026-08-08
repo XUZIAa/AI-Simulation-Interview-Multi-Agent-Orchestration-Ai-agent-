@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "gen:types": "cd .. && uv run python tools/gen_frontend_types.py",
+    "typecheck": "tsc --noEmit",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -39,6 +41,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
   }

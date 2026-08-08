@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   type BackendInfo,
   BackendError,
+  type GlobalStats,
+  type Schemas,
+  type SessionSummary,
   api,
   ensureBackend,
   inTauri,
@@ -17,32 +20,7 @@ import {
 } from "@/lib/backend";
 import { cn } from "@/lib/utils";
 
-interface ServerMeta {
-  name: string;
-  version: string;
-  event_names: string[];
-  subscribers: number;
-}
-
-interface GlobalStats {
-  total_sessions: number;
-  completed_sessions: number;
-  total_minutes: number;
-  best_score: number | null;
-  latest_score: number | null;
-  average_score: number | null;
-}
-
-interface SessionSummary {
-  id: number;
-  title: string;
-  status: string;
-  persona_name: string;
-  created_at: string;
-  duration_ms: number;
-  overall_score: number | null;
-  planned_minutes: number;
-}
+type ServerMeta = Schemas["ServerInfo"];
 
 type Phase = "booting" | "ready" | "failed";
 
@@ -94,7 +72,12 @@ export default function App() {
     setWsOpen(isEventChannelOpen());
     const offConn = onConnectionChange(setWsOpen);
     // 任何一类事件到达都说明桥是通的，这里只记录不解读
-    const names = ["task_progress", "phase_changed", "realtime_state_changed", "engine_failure"];
+    const names = [
+      "task_progress",
+      "phase_changed",
+      "realtime_state_changed",
+      "engine_failure",
+    ] as const;
     const offs = names.map((name) =>
       onEvent(name, (data) =>
         setEventLog((prev) => [`${name} ${JSON.stringify(data)}`, ...prev].slice(0, 6)),

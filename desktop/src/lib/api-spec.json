@@ -1,0 +1,4216 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "AI 模拟面试 本机接口",
+  "description": "桌面前端与 Python 后端之间的本机通道。仅监听回环地址，需 token 认证。",
+  "version": "1"
+ },
+ "paths": {
+  "/info": {
+   "get": {
+    "tags": [
+     "meta"
+    ],
+    "summary": "Info",
+    "operationId": "info_info_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ServerInfo"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/start": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Start",
+    "operationId": "engine_start_engine_start_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StartInterviewBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/stop": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Stop",
+    "operationId": "engine_stop_engine_stop_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StopInterviewBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StopResult"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/wait-finished": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Wait Finished",
+    "description": "面试从开始到结束都挂在这个请求上，正常要等几十分钟。",
+    "operationId": "engine_wait_finished_engine_wait_finished_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/mute": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Mute",
+    "operationId": "engine_mute_engine_mute_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MuteBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/hint": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Hint",
+    "operationId": "engine_hint_engine_hint_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HintBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/interrupt": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Interrupt",
+    "operationId": "engine_interrupt_engine_interrupt_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/code": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Submit Code",
+    "operationId": "engine_submit_code_engine_code_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubmitCodeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/engine/finish-early": {
+   "post": {
+    "tags": [
+     "engine"
+    ],
+    "summary": "Engine Finish Early",
+    "operationId": "engine_finish_early_engine_finish_early_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/session": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Build Session",
+    "operationId": "prepare_build_session_prepare_session_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BuildSessionBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InterviewState"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/resume": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Ingest Resume",
+    "operationId": "prepare_ingest_resume_prepare_resume_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IngestPathBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StoredResume"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/job-file": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Ingest Job File",
+    "operationId": "prepare_ingest_job_file_prepare_job_file_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IngestPathBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StoredJob"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/job-text": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Ingest Job Text",
+    "operationId": "prepare_ingest_job_text_prepare_job_text_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IngestJobTextBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StoredJob"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/job-synthesize": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Synthesize Job",
+    "operationId": "prepare_synthesize_job_prepare_job_synthesize_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SynthesizeJobBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StoredJob"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/prepare/diagnose": {
+   "post": {
+    "tags": [
+     "prepare"
+    ],
+    "summary": "Prepare Diagnose",
+    "operationId": "prepare_diagnose_prepare_diagnose_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DiagnoseBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StoredGap"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/review/generate": {
+   "post": {
+    "tags": [
+     "review"
+    ],
+    "summary": "Review Generate",
+    "operationId": "review_generate_review_generate_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GenerateReviewBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReviewReport"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/review/{session_id}": {
+   "get": {
+    "tags": [
+     "review"
+    ],
+    "summary": "Review Load",
+    "operationId": "review_load_review__session_id__get",
+    "parameters": [
+     {
+      "name": "session_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Session Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/ReviewReport"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Review Load Review  Session Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/sessions": {
+   "get": {
+    "tags": [
+     "sessions"
+    ],
+    "summary": "Sessions List",
+    "operationId": "sessions_list_sessions_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SessionSummary"
+         },
+         "title": "Response Sessions List Sessions Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/sessions/stats": {
+   "get": {
+    "tags": [
+     "sessions"
+    ],
+    "summary": "Sessions Stats",
+    "operationId": "sessions_stats_sessions_stats_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/GlobalStats"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/sessions/{session_id}/state": {
+   "get": {
+    "tags": [
+     "sessions"
+    ],
+    "summary": "Sessions State",
+    "operationId": "sessions_state_sessions__session_id__state_get",
+    "parameters": [
+     {
+      "name": "session_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Session Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/InterviewState"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Sessions State Sessions  Session Id  State Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/sessions/{session_id}/turns": {
+   "get": {
+    "tags": [
+     "sessions"
+    ],
+    "summary": "Sessions Turns",
+    "operationId": "sessions_turns_sessions__session_id__turns_get",
+    "parameters": [
+     {
+      "name": "session_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Session Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TurnRecord"
+         },
+         "title": "Response Sessions Turns Sessions  Session Id  Turns Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/sessions/{session_id}/status": {
+   "get": {
+    "tags": [
+     "sessions"
+    ],
+    "summary": "Sessions Status",
+    "operationId": "sessions_status_sessions__session_id__status_get",
+    "parameters": [
+     {
+      "name": "session_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Session Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/SessionStatus"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Sessions Status Sessions  Session Id  Status Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/mistakes": {
+   "get": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Mistakes List",
+    "operationId": "mistakes_list_mistakes_get",
+    "parameters": [
+     {
+      "name": "include_mastered",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Mastered"
+      }
+     },
+     {
+      "name": "topic",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "default": "",
+       "title": "Topic"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 200,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/StoredMistake"
+         },
+         "title": "Response Mistakes List Mistakes Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/mistakes/counts": {
+   "get": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Mistakes Counts",
+    "operationId": "mistakes_counts_mistakes_counts_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MistakeCounts"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/mistakes/topics": {
+   "get": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Mistakes Topics",
+    "operationId": "mistakes_topics_mistakes_topics_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array",
+         "title": "Response Mistakes Topics Mistakes Topics Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/mistakes/mastered": {
+   "post": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Mistakes Set Mastered",
+    "operationId": "mistakes_set_mastered_mistakes_mastered_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetMasteredBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/mistakes/{mistake_id}": {
+   "delete": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Mistakes Delete",
+    "operationId": "mistakes_delete_mistakes__mistake_id__delete",
+    "parameters": [
+     {
+      "name": "mistake_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Mistake Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/trends/overall": {
+   "get": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Trends Overall",
+    "operationId": "trends_overall_trends_overall_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 20,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/TrendPoint"
+         },
+         "title": "Response Trends Overall Trends Overall Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/trends/dimensions": {
+   "get": {
+    "tags": [
+     "reviews"
+    ],
+    "summary": "Trends Dimensions",
+    "operationId": "trends_dimensions_trends_dimensions_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 20,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "array",
+          "items": {
+           "$ref": "#/components/schemas/TrendPoint"
+          }
+         },
+         "propertyNames": {
+          "$ref": "#/components/schemas/ScoreDimension"
+         },
+         "title": "Response Trends Dimensions Trends Dimensions Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/personas": {
+   "get": {
+    "tags": [
+     "personas"
+    ],
+    "summary": "Personas List",
+    "operationId": "personas_list_personas_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/PersonaContract"
+         },
+         "type": "array",
+         "title": "Response Personas List Personas Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "personas"
+    ],
+    "summary": "Personas Save",
+    "operationId": "personas_save_personas_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PersonaContract"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PersonaContract"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/personas/{persona_id}": {
+   "delete": {
+    "tags": [
+     "personas"
+    ],
+    "summary": "Personas Delete",
+    "operationId": "personas_delete_personas__persona_id__delete",
+    "parameters": [
+     {
+      "name": "persona_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Persona Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/personas/unique-name": {
+   "post": {
+    "tags": [
+     "personas"
+    ],
+    "summary": "Personas Unique Name",
+    "operationId": "personas_unique_name_personas_unique_name_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UniqueNameBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Personas Unique Name Personas Unique Name Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/library/resumes": {
+   "get": {
+    "tags": [
+     "library"
+    ],
+    "summary": "Library Resumes",
+    "operationId": "library_resumes_library_resumes_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 30,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/StoredResume"
+         },
+         "title": "Response Library Resumes Library Resumes Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/library/jobs": {
+   "get": {
+    "tags": [
+     "library"
+    ],
+    "summary": "Library Jobs",
+    "operationId": "library_jobs_library_jobs_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 30,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/StoredJob"
+         },
+         "title": "Response Library Jobs Library Jobs Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/config": {
+   "get": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Config Get",
+    "operationId": "config_get_config_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppSettings"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Config Save",
+    "operationId": "config_save_config_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AppSettings"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/config/keys/{provider_key}": {
+   "get": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Config Key Present",
+    "description": "只回报有没有配，绝不回传密钥本体。",
+    "operationId": "config_key_present_config_keys__provider_key__get",
+    "parameters": [
+     {
+      "name": "provider_key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Provider Key"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "boolean"
+         },
+         "title": "Response Config Key Present Config Keys  Provider Key  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/config/keys": {
+   "post": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Config Set Key",
+    "operationId": "config_set_key_config_keys_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApiKeyBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Ok"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/recovery/scan": {
+   "post": {
+    "tags": [
+     "recovery"
+    ],
+    "summary": "Recovery Scan",
+    "operationId": "recovery_scan_recovery_scan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InterruptedSession"
+         },
+         "type": "array",
+         "title": "Response Recovery Scan Recovery Scan Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AbandonedSkill": {
+    "properties": {
+     "skill": {
+      "type": "string",
+      "title": "Skill"
+     },
+     "domain": {
+      "type": "string",
+      "title": "Domain",
+      "default": ""
+     },
+     "abandoned_at_depth": {
+      "type": "integer",
+      "title": "Abandoned At Depth",
+      "default": 1
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "skill"
+    ],
+    "title": "AbandonedSkill",
+    "description": "面试中被放弃深挖的技能点。这是最该补的短板。"
+   },
+   "AnnotationKind": {
+    "type": "string",
+    "enum": [
+     "strength",
+     "weakness",
+     "filler",
+     "off_topic"
+    ],
+    "title": "AnnotationKind"
+   },
+   "AnswerRewrite": {
+    "properties": {
+     "question_index": {
+      "type": "integer",
+      "title": "Question Index"
+     },
+     "question": {
+      "type": "string",
+      "title": "Question"
+     },
+     "original": {
+      "type": "string",
+      "title": "Original"
+     },
+     "rewritten": {
+      "type": "string",
+      "title": "Rewritten"
+     },
+     "why_better": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Why Better"
+     },
+     "used_assets": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Used Assets"
+     }
+    },
+    "type": "object",
+    "required": [
+     "question_index",
+     "question",
+     "original",
+     "rewritten"
+    ],
+    "title": "AnswerRewrite"
+   },
+   "ApiKeyBody": {
+    "properties": {
+     "provider_key": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Provider Key"
+     },
+     "api_key": {
+      "type": "string",
+      "title": "Api Key"
+     }
+    },
+    "type": "object",
+    "required": [
+     "provider_key",
+     "api_key"
+    ],
+    "title": "ApiKeyBody"
+   },
+   "AppSettings": {
+    "properties": {
+     "roles": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/RoleBinding"
+      },
+      "type": "object",
+      "title": "Roles"
+     },
+     "realtime": {
+      "$ref": "#/components/schemas/RealtimeSettings"
+     },
+     "audio": {
+      "$ref": "#/components/schemas/AudioSettings"
+     },
+     "orchestration": {
+      "$ref": "#/components/schemas/OrchestrationSettings"
+     },
+     "features": {
+      "$ref": "#/components/schemas/FeatureSettings"
+     },
+     "custom_chat": {
+      "$ref": "#/components/schemas/CustomEndpoint"
+     },
+     "active_profile_name": {
+      "type": "string",
+      "title": "Active Profile Name",
+      "default": "我"
+     }
+    },
+    "type": "object",
+    "title": "AppSettings"
+   },
+   "AudioSettings": {
+    "properties": {
+     "input_device": {
+      "type": "string",
+      "title": "Input Device",
+      "default": ""
+     },
+     "output_device": {
+      "type": "string",
+      "title": "Output Device",
+      "default": ""
+     },
+     "input_gain": {
+      "type": "number",
+      "maximum": 4.0,
+      "minimum": 0.2,
+      "title": "Input Gain",
+      "default": 1.0
+     },
+     "vad_threshold": {
+      "type": "number",
+      "maximum": 0.95,
+      "minimum": 0.05,
+      "title": "Vad Threshold",
+      "default": 0.28
+     },
+     "silence_duration_ms": {
+      "type": "integer",
+      "maximum": 2000.0,
+      "minimum": 200.0,
+      "title": "Silence Duration Ms",
+      "default": 620
+     },
+     "prefix_padding_ms": {
+      "type": "integer",
+      "maximum": 1000.0,
+      "minimum": 0.0,
+      "title": "Prefix Padding Ms",
+      "default": 300
+     },
+     "semantic_vad": {
+      "type": "boolean",
+      "title": "Semantic Vad",
+      "default": true
+     },
+     "auto_gain": {
+      "type": "boolean",
+      "title": "Auto Gain",
+      "default": true
+     },
+     "learned_gain": {
+      "type": "number",
+      "title": "Learned Gain",
+      "default": 1.0
+     },
+     "playback_buffer_ms": {
+      "type": "integer",
+      "maximum": 900.0,
+      "minimum": 60.0,
+      "title": "Playback Buffer Ms",
+      "default": 240
+     }
+    },
+    "type": "object",
+    "title": "AudioSettings"
+   },
+   "BankQuestion": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "skill": {
+      "type": "string",
+      "title": "Skill"
+     },
+     "domain": {
+      "type": "string",
+      "title": "Domain"
+     },
+     "depth": {
+      "type": "integer",
+      "maximum": 4.0,
+      "minimum": 1.0,
+      "title": "Depth",
+      "default": 1
+     },
+     "source": {
+      "$ref": "#/components/schemas/QuestionSource",
+      "default": "fundamental"
+     },
+     "project_ref": {
+      "type": "string",
+      "title": "Project Ref",
+      "default": ""
+     },
+     "jd_ref": {
+      "type": "string",
+      "title": "Jd Ref",
+      "default": ""
+     },
+     "follow_ups": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Follow Ups"
+     },
+     "expected_signals": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Expected Signals"
+     },
+     "must_ask": {
+      "type": "boolean",
+      "title": "Must Ask",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "text",
+     "skill",
+     "domain"
+    ],
+    "title": "BankQuestion",
+    "description": "题库里的一道题。面试中问出的每个新问题都必须来自这里。"
+   },
+   "BuildSessionBody": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Task Id",
+      "default": ""
+     },
+     "persona": {
+      "$ref": "#/components/schemas/PersonaContract"
+     },
+     "resume_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resume Id"
+     },
+     "job_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Job Id"
+     },
+     "tier": {
+      "$ref": "#/components/schemas/CompanyTier"
+     },
+     "level": {
+      "$ref": "#/components/schemas/JobLevel"
+     },
+     "minutes": {
+      "type": "integer",
+      "maximum": 120.0,
+      "minimum": 5.0,
+      "title": "Minutes"
+     },
+     "coding_enabled": {
+      "type": "boolean",
+      "title": "Coding Enabled",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "persona",
+     "tier",
+     "level",
+     "minutes"
+    ],
+    "title": "BuildSessionBody"
+   },
+   "CompanyTier": {
+    "type": "string",
+    "enum": [
+     "big_tech",
+     "mid_tech",
+     "startup",
+     "manufacturing",
+     "state_owned",
+     "foreign",
+     "finance",
+     "outsource"
+    ],
+    "title": "CompanyTier",
+    "description": "公司类型。它决定考什么、怎么问、以及分数怎么加权。"
+   },
+   "CustomEndpoint": {
+    "properties": {
+     "base_url": {
+      "type": "string",
+      "title": "Base Url",
+      "default": ""
+     },
+     "models": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Models"
+     }
+    },
+    "type": "object",
+    "title": "CustomEndpoint",
+    "description": "自定义端点的用户填写值，仅在 provider = custom 时生效。"
+   },
+   "DepthAction": {
+    "type": "string",
+    "enum": [
+     "deepen",
+     "sidestep",
+     "switch",
+     "abandon"
+    ],
+    "title": "DepthAction",
+    "description": "答完一题后的确定性推进动作。模型只提供质量分，动作由规则算。"
+   },
+   "DiagnoseBody": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Task Id",
+      "default": ""
+     },
+     "resume_id": {
+      "type": "integer",
+      "title": "Resume Id"
+     },
+     "job_id": {
+      "type": "integer",
+      "title": "Job Id"
+     },
+     "refresh": {
+      "type": "boolean",
+      "title": "Refresh",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "resume_id",
+     "job_id"
+    ],
+    "title": "DiagnoseBody"
+   },
+   "DimensionScore": {
+    "properties": {
+     "dimension": {
+      "$ref": "#/components/schemas/ScoreDimension"
+     },
+     "score": {
+      "type": "number",
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Score",
+      "default": 0.0
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason",
+      "default": ""
+     },
+     "evidence": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Evidence"
+     }
+    },
+    "type": "object",
+    "required": [
+     "dimension"
+    ],
+    "title": "DimensionScore"
+   },
+   "DriftKind": {
+    "type": "string",
+    "enum": [
+     "none",
+     "ai_self_reveal",
+     "role_swap",
+     "refusal",
+     "off_domain",
+     "style_break",
+     "answer_leak"
+    ],
+    "title": "DriftKind",
+    "description": "人格漂移的具体形态，Guard 命中后用于决定修复动作。"
+   },
+   "DrillItem": {
+    "properties": {
+     "action": {
+      "type": "string",
+      "title": "Action"
+     },
+     "why": {
+      "type": "string",
+      "title": "Why",
+      "default": ""
+     },
+     "time_cost": {
+      "type": "string",
+      "title": "Time Cost",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "action"
+    ],
+    "title": "DrillItem"
+   },
+   "FeatureSettings": {
+    "properties": {
+     "camera_enabled": {
+      "type": "boolean",
+      "title": "Camera Enabled",
+      "default": true
+     },
+     "copilot_enabled": {
+      "type": "boolean",
+      "title": "Copilot Enabled",
+      "default": true
+     },
+     "coding_round_enabled": {
+      "type": "boolean",
+      "title": "Coding Round Enabled",
+      "default": false
+     },
+     "save_audio": {
+      "type": "boolean",
+      "title": "Save Audio",
+      "default": true
+     }
+    },
+    "type": "object",
+    "title": "FeatureSettings"
+   },
+   "GapReport": {
+    "properties": {
+     "match_score": {
+      "type": "integer",
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Match Score",
+      "default": 0
+     },
+     "verdict": {
+      "type": "string",
+      "title": "Verdict",
+      "default": ""
+     },
+     "matches": {
+      "items": {
+       "$ref": "#/components/schemas/SkillMatch"
+      },
+      "type": "array",
+      "title": "Matches"
+     },
+     "gaps": {
+      "items": {
+       "$ref": "#/components/schemas/SkillGap"
+      },
+      "type": "array",
+      "title": "Gaps"
+     },
+     "predicted_questions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Predicted Questions"
+     },
+     "focus_skills": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Focus Skills"
+     },
+     "phase_emphasis": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "$ref": "#/components/schemas/InterviewPhase"
+      },
+      "type": "object",
+      "title": "Phase Emphasis"
+     }
+    },
+    "type": "object",
+    "title": "GapReport"
+   },
+   "GapSeverity": {
+    "type": "string",
+    "enum": [
+     "blocker",
+     "major",
+     "minor"
+    ],
+    "title": "GapSeverity"
+   },
+   "GenerateReviewBody": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id"
+    ],
+    "title": "GenerateReviewBody"
+   },
+   "GlobalStats": {
+    "properties": {
+     "total_sessions": {
+      "type": "integer",
+      "title": "Total Sessions"
+     },
+     "completed_sessions": {
+      "type": "integer",
+      "title": "Completed Sessions"
+     },
+     "total_minutes": {
+      "type": "integer",
+      "title": "Total Minutes"
+     },
+     "best_score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Best Score"
+     },
+     "latest_score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latest Score"
+     },
+     "average_score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Average Score"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total_sessions",
+     "completed_sessions",
+     "total_minutes",
+     "best_score",
+     "latest_score",
+     "average_score"
+    ],
+    "title": "GlobalStats"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "HintBody": {
+    "properties": {
+     "auto": {
+      "type": "boolean",
+      "title": "Auto",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "HintBody"
+   },
+   "ImprovementPlan": {
+    "properties": {
+     "focus_area": {
+      "type": "string",
+      "title": "Focus Area"
+     },
+     "diagnosis": {
+      "type": "string",
+      "title": "Diagnosis",
+      "default": ""
+     },
+     "expected_gain": {
+      "type": "string",
+      "title": "Expected Gain",
+      "default": ""
+     },
+     "drills": {
+      "items": {
+       "$ref": "#/components/schemas/DrillItem"
+      },
+      "type": "array",
+      "title": "Drills"
+     },
+     "resources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Resources"
+     },
+     "next_mock_setup": {
+      "type": "string",
+      "title": "Next Mock Setup",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "focus_area"
+    ],
+    "title": "ImprovementPlan",
+    "description": "专项提升方案。一个专项对应一条明确的训练路径，不给泛泛建议。"
+   },
+   "IngestJobTextBody": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Task Id",
+      "default": ""
+     },
+     "raw": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Raw"
+     }
+    },
+    "type": "object",
+    "required": [
+     "raw"
+    ],
+    "title": "IngestJobTextBody"
+   },
+   "IngestPathBody": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Task Id",
+      "default": ""
+     },
+     "path": {
+      "type": "string",
+      "minLength": 1,
+      "title": "Path"
+     }
+    },
+    "type": "object",
+    "required": [
+     "path"
+    ],
+    "title": "IngestPathBody",
+    "description": "Tauri 的文件对话框返回真实路径，无需上传文件本体。"
+   },
+   "InterruptedSession": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms"
+     },
+     "reviewable": {
+      "type": "boolean",
+      "title": "Reviewable"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id",
+     "title",
+     "duration_ms",
+     "reviewable"
+    ],
+    "title": "InterruptedSession"
+   },
+   "InterviewPhase": {
+    "type": "string",
+    "enum": [
+     "warmup",
+     "resume_deep_dive",
+     "tech_depth",
+     "behavioral",
+     "coding",
+     "stress",
+     "candidate_qa",
+     "closing",
+     "finished"
+    ],
+    "title": "InterviewPhase",
+    "description": "面试阶段，导演据此收敛提问范围。"
+   },
+   "InterviewPlan": {
+    "properties": {
+     "total_ms": {
+      "type": "integer",
+      "title": "Total Ms"
+     },
+     "slots": {
+      "items": {
+       "$ref": "#/components/schemas/PhaseSlot"
+      },
+      "type": "array",
+      "title": "Slots"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total_ms",
+     "slots"
+    ],
+    "title": "InterviewPlan",
+    "description": "面试开始前一次性排定，运行期只读。总时长是硬上限。"
+   },
+   "InterviewState": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     },
+     "persona": {
+      "$ref": "#/components/schemas/PersonaContract"
+     },
+     "plan": {
+      "$ref": "#/components/schemas/InterviewPlan"
+     },
+     "bank": {
+      "$ref": "#/components/schemas/QuestionBank"
+     },
+     "company_tier": {
+      "$ref": "#/components/schemas/CompanyTier",
+      "default": "mid_tech"
+     },
+     "job_level": {
+      "$ref": "#/components/schemas/JobLevel",
+      "default": "mid"
+     },
+     "job_title": {
+      "type": "string",
+      "title": "Job Title",
+      "default": ""
+     },
+     "resume_digest": {
+      "type": "string",
+      "title": "Resume Digest",
+      "default": ""
+     },
+     "jd_digest": {
+      "type": "string",
+      "title": "Jd Digest",
+      "default": ""
+     },
+     "gap_digest": {
+      "type": "string",
+      "title": "Gap Digest",
+      "default": ""
+     },
+     "phase": {
+      "$ref": "#/components/schemas/InterviewPhase",
+      "default": "warmup"
+     },
+     "phase_started_at_ms": {
+      "type": "integer",
+      "title": "Phase Started At Ms",
+      "default": 0
+     },
+     "elapsed_ms": {
+      "type": "integer",
+      "title": "Elapsed Ms",
+      "default": 0
+     },
+     "turn_index": {
+      "type": "integer",
+      "title": "Turn Index",
+      "default": 0
+     },
+     "question_index": {
+      "type": "integer",
+      "title": "Question Index",
+      "default": 0
+     },
+     "turns": {
+      "items": {
+       "$ref": "#/components/schemas/TurnRecord"
+      },
+      "type": "array",
+      "title": "Turns"
+     },
+     "questions": {
+      "items": {
+       "$ref": "#/components/schemas/QuestionRecord"
+      },
+      "type": "array",
+      "title": "Questions"
+     },
+     "current_question_index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Question Index"
+     },
+     "follow_up_depth": {
+      "type": "integer",
+      "title": "Follow Up Depth",
+      "default": 0
+     },
+     "pending_skills": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Pending Skills"
+     },
+     "covered_skills": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Covered Skills"
+     },
+     "asked_bank_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Asked Bank Ids"
+     },
+     "skill_progress": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/SkillProgress"
+      },
+      "type": "object",
+      "title": "Skill Progress"
+     },
+     "domains_visited": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Domains Visited"
+     },
+     "current_domain": {
+      "type": "string",
+      "title": "Current Domain",
+      "default": ""
+     },
+     "last_depth_action": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DepthAction"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "questions_since_personality": {
+      "type": "integer",
+      "title": "Questions Since Personality",
+      "default": 4
+     },
+     "personality_probes_used": {
+      "type": "integer",
+      "title": "Personality Probes Used",
+      "default": 0
+     },
+     "interrupts_used_in_phase": {
+      "type": "integer",
+      "title": "Interrupts Used In Phase",
+      "default": 0
+     },
+     "drift_count": {
+      "type": "integer",
+      "title": "Drift Count",
+      "default": 0
+     },
+     "last_drift": {
+      "$ref": "#/components/schemas/DriftKind",
+      "default": "none"
+     },
+     "turns_since_reanchor": {
+      "type": "integer",
+      "title": "Turns Since Reanchor",
+      "default": 0
+     },
+     "star": {
+      "$ref": "#/components/schemas/StarState"
+     },
+     "live_scores": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "propertyNames": {
+       "$ref": "#/components/schemas/ScoreDimension"
+      },
+      "type": "object",
+      "title": "Live Scores"
+     },
+     "coding_active": {
+      "type": "boolean",
+      "title": "Coding Active",
+      "default": false
+     },
+     "code_language": {
+      "type": "string",
+      "title": "Code Language",
+      "default": "python"
+     },
+     "code_snapshot": {
+      "type": "string",
+      "title": "Code Snapshot",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id",
+     "persona",
+     "plan"
+    ],
+    "title": "InterviewState",
+    "description": "权威状态。实时模型的记忆不可信，一切以此为准，且每轮落盘。"
+   },
+   "JobDescription": {
+    "properties": {
+     "source_name": {
+      "type": "string",
+      "title": "Source Name",
+      "default": ""
+     },
+     "raw_text": {
+      "type": "string",
+      "title": "Raw Text",
+      "default": ""
+     },
+     "company": {
+      "type": "string",
+      "title": "Company",
+      "default": ""
+     },
+     "title": {
+      "type": "string",
+      "title": "Title",
+      "default": ""
+     },
+     "must_have": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Must Have"
+     },
+     "nice_to_have": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Nice To Have"
+     },
+     "responsibilities": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Responsibilities"
+     }
+    },
+    "type": "object",
+    "title": "JobDescription"
+   },
+   "JobLevel": {
+    "type": "string",
+    "enum": [
+     "intern",
+     "junior",
+     "mid",
+     "senior",
+     "expert"
+    ],
+    "title": "JobLevel"
+   },
+   "MistakeCounts": {
+    "properties": {
+     "pending": {
+      "type": "integer",
+      "title": "Pending"
+     },
+     "mastered": {
+      "type": "integer",
+      "title": "Mastered"
+     }
+    },
+    "type": "object",
+    "required": [
+     "pending",
+     "mastered"
+    ],
+    "title": "MistakeCounts"
+   },
+   "MistakeItem": {
+    "properties": {
+     "knowledge_point": {
+      "type": "string",
+      "title": "Knowledge Point"
+     },
+     "topic": {
+      "type": "string",
+      "title": "Topic",
+      "default": ""
+     },
+     "question": {
+      "type": "string",
+      "title": "Question",
+      "default": ""
+     },
+     "candidate_answer": {
+      "type": "string",
+      "title": "Candidate Answer",
+      "default": ""
+     },
+     "key_points": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Key Points"
+     },
+     "severity": {
+      "$ref": "#/components/schemas/GapSeverity",
+      "default": "major"
+     },
+     "review_hint": {
+      "type": "string",
+      "title": "Review Hint",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "knowledge_point"
+    ],
+    "title": "MistakeItem"
+   },
+   "MuteBody": {
+    "properties": {
+     "muted": {
+      "type": "boolean",
+      "title": "Muted"
+     }
+    },
+    "type": "object",
+    "required": [
+     "muted"
+    ],
+    "title": "MuteBody"
+   },
+   "Ok": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok",
+      "default": true
+     }
+    },
+    "type": "object",
+    "title": "Ok"
+   },
+   "OrchestrationSettings": {
+    "properties": {
+     "reanchor_every_turns": {
+      "type": "integer",
+      "maximum": 20.0,
+      "minimum": 1.0,
+      "title": "Reanchor Every Turns",
+      "default": 4
+     },
+     "max_follow_up_depth": {
+      "type": "integer",
+      "maximum": 6.0,
+      "minimum": 1.0,
+      "title": "Max Follow Up Depth",
+      "default": 3
+     },
+     "director_timeout_ms": {
+      "type": "integer",
+      "maximum": 30000.0,
+      "minimum": 2000.0,
+      "title": "Director Timeout Ms",
+      "default": 9000
+     },
+     "guard_timeout_ms": {
+      "type": "integer",
+      "maximum": 10000.0,
+      "minimum": 800.0,
+      "title": "Guard Timeout Ms",
+      "default": 2500
+     },
+     "interrupt_budget_per_phase": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Interrupt Budget Per Phase",
+      "default": 2
+     },
+     "verbose_seconds_before_interrupt": {
+      "type": "number",
+      "maximum": 180.0,
+      "minimum": 10.0,
+      "title": "Verbose Seconds Before Interrupt",
+      "default": 42.0
+     },
+     "turn_gap_ms": {
+      "type": "integer",
+      "maximum": 3000.0,
+      "minimum": 300.0,
+      "title": "Turn Gap Ms",
+      "default": 850
+     },
+     "planned_minutes": {
+      "type": "integer",
+      "maximum": 45.0,
+      "minimum": 10.0,
+      "title": "Planned Minutes",
+      "default": 30
+     }
+    },
+    "type": "object",
+    "title": "OrchestrationSettings"
+   },
+   "PersonaArchetype": {
+    "type": "string",
+    "enum": [
+     "irritable_cto",
+     "gentle_hr",
+     "picky_biz_leader",
+     "foreign_corp",
+     "academic_purist",
+     "silent_observer",
+     "rapid_fire",
+     "structured",
+     "custom"
+    ],
+    "title": "PersonaArchetype"
+   },
+   "PersonaContract": {
+    "properties": {
+     "id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "archetype": {
+      "$ref": "#/components/schemas/PersonaArchetype",
+      "default": "custom"
+     },
+     "company_tier": {
+      "$ref": "#/components/schemas/CompanyTier",
+      "default": "mid_tech"
+     },
+     "job_title": {
+      "type": "string",
+      "maxLength": 60,
+      "title": "Job Title",
+      "default": "技术面试官"
+     },
+     "company_flavor": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Company Flavor",
+      "default": "一家节奏很快的互联网公司"
+     },
+     "voice": {
+      "type": "string",
+      "title": "Voice",
+      "default": ""
+     },
+     "speech": {
+      "$ref": "#/components/schemas/SpeechStyle"
+     },
+     "pressure": {
+      "$ref": "#/components/schemas/PressureProfile"
+     },
+     "probing": {
+      "$ref": "#/components/schemas/ProbingProfile"
+     },
+     "opening_line": {
+      "type": "string",
+      "title": "Opening Line",
+      "default": ""
+     },
+     "extra_rules": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Extra Rules"
+     },
+     "is_builtin": {
+      "type": "boolean",
+      "title": "Is Builtin",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "PersonaContract",
+    "description": "结构化人设契约。所有人格行为都由此编译而来，不允许在别处写死语气。"
+   },
+   "PhaseSlot": {
+    "properties": {
+     "phase": {
+      "$ref": "#/components/schemas/InterviewPhase"
+     },
+     "budget_ms": {
+      "type": "integer",
+      "title": "Budget Ms"
+     },
+     "min_questions": {
+      "type": "integer",
+      "title": "Min Questions",
+      "default": 1
+     }
+    },
+    "type": "object",
+    "required": [
+     "phase",
+     "budget_ms"
+    ],
+    "title": "PhaseSlot"
+   },
+   "PressureProfile": {
+    "properties": {
+     "aggression": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Aggression",
+      "default": 4
+     },
+     "interrupt_tendency": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Interrupt Tendency",
+      "default": 3
+     },
+     "silence_pressure": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Silence Pressure",
+      "default": 2
+     },
+     "challenge_frequency": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Challenge Frequency",
+      "default": 4
+     },
+     "tolerance_for_vagueness": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Tolerance For Vagueness",
+      "default": 5
+     }
+    },
+    "type": "object",
+    "title": "PressureProfile"
+   },
+   "ProbingProfile": {
+    "properties": {
+     "divergence": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Divergence",
+      "default": 5
+     },
+     "follow_up_depth": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Follow Up Depth",
+      "default": 5
+     },
+     "project_focus": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Project Focus",
+      "default": 7
+     },
+     "fundamentals_focus": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Fundamentals Focus",
+      "default": 5
+     },
+     "system_design_focus": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "System Design Focus",
+      "default": 5
+     },
+     "coding_focus": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Coding Focus",
+      "default": 4
+     },
+     "behavioral_focus": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Behavioral Focus",
+      "default": 4
+     }
+    },
+    "type": "object",
+    "title": "ProbingProfile"
+   },
+   "ProjectHighlight": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role",
+      "default": ""
+     },
+     "stack": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Stack"
+     },
+     "impact": {
+      "type": "string",
+      "title": "Impact",
+      "default": ""
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "ProjectHighlight"
+   },
+   "ProsodyReport": {
+    "properties": {
+     "words_per_minute": {
+      "type": "number",
+      "title": "Words Per Minute",
+      "default": 0.0
+     },
+     "filler_ratio": {
+      "type": "number",
+      "title": "Filler Ratio",
+      "default": 0.0
+     },
+     "pause_ratio": {
+      "type": "number",
+      "title": "Pause Ratio",
+      "default": 0.0
+     },
+     "longest_pause_ms": {
+      "type": "integer",
+      "title": "Longest Pause Ms",
+      "default": 0
+     },
+     "speaking_ratio": {
+      "type": "number",
+      "title": "Speaking Ratio",
+      "default": 0.0
+     },
+     "interrupted_count": {
+      "type": "integer",
+      "title": "Interrupted Count",
+      "default": 0
+     },
+     "per_question": {
+      "items": {
+       "$ref": "#/components/schemas/QuestionProsody"
+      },
+      "type": "array",
+      "title": "Per Question"
+     },
+     "verdict": {
+      "type": "string",
+      "title": "Verdict",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "ProsodyReport",
+    "description": "副语言指标全部由规则计算，不交给模型编造。"
+   },
+   "QuestionBank": {
+    "properties": {
+     "questions": {
+      "items": {
+       "$ref": "#/components/schemas/BankQuestion"
+      },
+      "type": "array",
+      "title": "Questions"
+     }
+    },
+    "type": "object",
+    "title": "QuestionBank",
+    "description": "面试前一次性生成，面试中只读。导演只能从这里挑新问题。"
+   },
+   "QuestionProsody": {
+    "properties": {
+     "question_index": {
+      "type": "integer",
+      "title": "Question Index"
+     },
+     "words_per_minute": {
+      "type": "number",
+      "title": "Words Per Minute",
+      "default": 0.0
+     },
+     "filler_count": {
+      "type": "integer",
+      "title": "Filler Count",
+      "default": 0
+     },
+     "pause_ratio": {
+      "type": "number",
+      "title": "Pause Ratio",
+      "default": 0.0
+     },
+     "longest_pause_ms": {
+      "type": "integer",
+      "title": "Longest Pause Ms",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "question_index"
+    ],
+    "title": "QuestionProsody"
+   },
+   "QuestionRecord": {
+    "properties": {
+     "index": {
+      "type": "integer",
+      "title": "Index"
+     },
+     "phase": {
+      "$ref": "#/components/schemas/InterviewPhase"
+     },
+     "intent": {
+      "$ref": "#/components/schemas/TurnIntent"
+     },
+     "brief": {
+      "type": "string",
+      "title": "Brief"
+     },
+     "target_skill": {
+      "type": "string",
+      "title": "Target Skill",
+      "default": ""
+     },
+     "domain": {
+      "type": "string",
+      "title": "Domain",
+      "default": ""
+     },
+     "depth": {
+      "type": "integer",
+      "title": "Depth",
+      "default": 1
+     },
+     "bank_question_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bank Question Id"
+     },
+     "spoken_text": {
+      "type": "string",
+      "title": "Spoken Text",
+      "default": ""
+     },
+     "asked_at_ms": {
+      "type": "integer",
+      "title": "Asked At Ms",
+      "default": 0
+     },
+     "follow_up_depth": {
+      "type": "integer",
+      "title": "Follow Up Depth",
+      "default": 0
+     },
+     "answer_text": {
+      "type": "string",
+      "title": "Answer Text",
+      "default": ""
+     },
+     "quality": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quality"
+     },
+     "depth_action": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DepthAction"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "index",
+     "phase",
+     "intent",
+     "brief"
+    ],
+    "title": "QuestionRecord"
+   },
+   "QuestionSource": {
+    "type": "string",
+    "enum": [
+     "jd",
+     "project",
+     "skill",
+     "fundamental",
+     "behavioral",
+     "coding"
+    ],
+    "title": "QuestionSource",
+    "description": "题目来源。决定这道题为什么值得问，也决定它能不能被跳过。"
+   },
+   "RealtimeSettings": {
+    "properties": {
+     "provider": {
+      "type": "string",
+      "title": "Provider",
+      "default": "qwen_omni"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model",
+      "default": ""
+     },
+     "voice": {
+      "type": "string",
+      "title": "Voice",
+      "default": ""
+     },
+     "temperature": {
+      "type": "number",
+      "maximum": 1.5,
+      "minimum": 0.1,
+      "title": "Temperature",
+      "default": 0.85
+     }
+    },
+    "type": "object",
+    "title": "RealtimeSettings"
+   },
+   "ResumeProfile": {
+    "properties": {
+     "source_name": {
+      "type": "string",
+      "title": "Source Name",
+      "default": ""
+     },
+     "raw_text": {
+      "type": "string",
+      "title": "Raw Text",
+      "default": ""
+     },
+     "candidate_name": {
+      "type": "string",
+      "title": "Candidate Name",
+      "default": ""
+     },
+     "years_of_experience": {
+      "type": "number",
+      "title": "Years Of Experience",
+      "default": 0.0
+     },
+     "current_title": {
+      "type": "string",
+      "title": "Current Title",
+      "default": ""
+     },
+     "skills": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Skills"
+     },
+     "projects": {
+      "items": {
+       "$ref": "#/components/schemas/ProjectHighlight"
+      },
+      "type": "array",
+      "title": "Projects"
+     },
+     "education": {
+      "type": "string",
+      "title": "Education",
+      "default": ""
+     },
+     "self_claims": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Self Claims"
+     }
+    },
+    "type": "object",
+    "title": "ResumeProfile",
+    "description": "从简历原文抽出的结构化画像，后续所有个性化都基于它。"
+   },
+   "ReviewReport": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms",
+      "default": 0
+     },
+     "reviewable": {
+      "type": "boolean",
+      "title": "Reviewable",
+      "default": true
+     },
+     "overall_score": {
+      "type": "number",
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Overall Score",
+      "default": 0.0
+     },
+     "headline": {
+      "type": "string",
+      "title": "Headline",
+      "default": ""
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary",
+      "default": ""
+     },
+     "dimensions": {
+      "items": {
+       "$ref": "#/components/schemas/DimensionScore"
+      },
+      "type": "array",
+      "title": "Dimensions"
+     },
+     "annotations": {
+      "items": {
+       "$ref": "#/components/schemas/TranscriptAnnotation"
+      },
+      "type": "array",
+      "title": "Annotations"
+     },
+     "rewrites": {
+      "items": {
+       "$ref": "#/components/schemas/AnswerRewrite"
+      },
+      "type": "array",
+      "title": "Rewrites"
+     },
+     "mistakes": {
+      "items": {
+       "$ref": "#/components/schemas/MistakeItem"
+      },
+      "type": "array",
+      "title": "Mistakes"
+     },
+     "prosody": {
+      "$ref": "#/components/schemas/ProsodyReport"
+     },
+     "strengths": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Strengths"
+     },
+     "improvements": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Improvements"
+     },
+     "next_actions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Next Actions"
+     },
+     "improvement_plans": {
+      "items": {
+       "$ref": "#/components/schemas/ImprovementPlan"
+      },
+      "type": "array",
+      "title": "Improvement Plans"
+     },
+     "abandoned_skills": {
+      "items": {
+       "$ref": "#/components/schemas/AbandonedSkill"
+      },
+      "type": "array",
+      "title": "Abandoned Skills"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id"
+    ],
+    "title": "ReviewReport"
+   },
+   "RoleBinding": {
+    "properties": {
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "provider"
+    ],
+    "title": "RoleBinding",
+    "description": "三类文本角色各自绑定的模型，允许分别指定以平衡成本与质量。"
+   },
+   "ScoreDimension": {
+    "type": "string",
+    "enum": [
+     "tech_depth",
+     "expression",
+     "resilience",
+     "value_fit",
+     "coding",
+     "collaboration"
+    ],
+    "title": "ScoreDimension"
+   },
+   "ServerInfo": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "version": {
+      "type": "string",
+      "title": "Version"
+     },
+     "event_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Event Names"
+     },
+     "subscribers": {
+      "type": "integer",
+      "title": "Subscribers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "version",
+     "event_names",
+     "subscribers"
+    ],
+    "title": "ServerInfo"
+   },
+   "SessionStatus": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "running",
+     "reviewing",
+     "completed",
+     "aborted"
+    ],
+    "title": "SessionStatus"
+   },
+   "SessionSummary": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "status": {
+      "$ref": "#/components/schemas/SessionStatus"
+     },
+     "persona_name": {
+      "type": "string",
+      "title": "Persona Name"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms"
+     },
+     "overall_score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Overall Score"
+     },
+     "planned_minutes": {
+      "type": "integer",
+      "title": "Planned Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "status",
+     "persona_name",
+     "created_at",
+     "duration_ms",
+     "overall_score",
+     "planned_minutes"
+    ],
+    "title": "SessionSummary"
+   },
+   "SetMasteredBody": {
+    "properties": {
+     "mistake_id": {
+      "type": "integer",
+      "title": "Mistake Id"
+     },
+     "mastered": {
+      "type": "boolean",
+      "title": "Mastered"
+     }
+    },
+    "type": "object",
+    "required": [
+     "mistake_id",
+     "mastered"
+    ],
+    "title": "SetMasteredBody"
+   },
+   "SkillGap": {
+    "properties": {
+     "skill": {
+      "type": "string",
+      "title": "Skill"
+     },
+     "severity": {
+      "$ref": "#/components/schemas/GapSeverity",
+      "default": "major"
+     },
+     "jd_requirement": {
+      "type": "string",
+      "title": "Jd Requirement",
+      "default": ""
+     },
+     "why_gap": {
+      "type": "string",
+      "title": "Why Gap",
+      "default": ""
+     },
+     "bridge_asset": {
+      "type": "string",
+      "title": "Bridge Asset",
+      "default": ""
+     },
+     "talking_script": {
+      "type": "string",
+      "title": "Talking Script",
+      "default": ""
+     },
+     "study_hint": {
+      "type": "string",
+      "title": "Study Hint",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "skill"
+    ],
+    "title": "SkillGap",
+    "description": "技能盲区 + 可直接照着说的补救话术。"
+   },
+   "SkillMatch": {
+    "properties": {
+     "skill": {
+      "type": "string",
+      "title": "Skill"
+     },
+     "evidence": {
+      "type": "string",
+      "title": "Evidence",
+      "default": ""
+     },
+     "strength": {
+      "type": "integer",
+      "maximum": 5.0,
+      "minimum": 1.0,
+      "title": "Strength",
+      "default": 3
+     }
+    },
+    "type": "object",
+    "required": [
+     "skill"
+    ],
+    "title": "SkillMatch"
+   },
+   "SkillProgress": {
+    "properties": {
+     "skill": {
+      "type": "string",
+      "title": "Skill"
+     },
+     "domain": {
+      "type": "string",
+      "title": "Domain"
+     },
+     "depth_reached": {
+      "type": "integer",
+      "title": "Depth Reached",
+      "default": 0
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts",
+      "default": 0
+     },
+     "attempts_at_depth": {
+      "type": "integer",
+      "title": "Attempts At Depth",
+      "default": 0
+     },
+     "low_streak": {
+      "type": "integer",
+      "title": "Low Streak",
+      "default": 0
+     },
+     "best_quality": {
+      "type": "number",
+      "title": "Best Quality",
+      "default": 0.0
+     },
+     "exhausted": {
+      "type": "boolean",
+      "title": "Exhausted",
+      "default": false
+     },
+     "abandoned_at_depth": {
+      "type": "integer",
+      "title": "Abandoned At Depth",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "skill",
+     "domain"
+    ],
+    "title": "SkillProgress",
+    "description": "单个技能点的推进状态。这是「越来越深还是换领域」的唯一依据。"
+   },
+   "Speaker": {
+    "type": "string",
+    "enum": [
+     "interviewer",
+     "candidate"
+    ],
+    "title": "Speaker"
+   },
+   "SpeechStyle": {
+    "properties": {
+     "code_switch": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Code Switch",
+      "default": 0
+     },
+     "verbosity": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Verbosity",
+      "default": 4
+     },
+     "warmth": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Warmth",
+      "default": 5
+     },
+     "formality": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Formality",
+      "default": 5
+     },
+     "speech_rate": {
+      "type": "integer",
+      "maximum": 10.0,
+      "minimum": 0.0,
+      "title": "Speech Rate",
+      "default": 5
+     },
+     "catchphrases": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Catchphrases"
+     },
+     "banned_phrases": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Banned Phrases"
+     }
+    },
+    "type": "object",
+    "title": "SpeechStyle"
+   },
+   "StarElement": {
+    "type": "string",
+    "enum": [
+     "situation",
+     "task",
+     "action",
+     "result"
+    ],
+    "title": "StarElement"
+   },
+   "StarState": {
+    "properties": {
+     "is_behavioral": {
+      "type": "boolean",
+      "title": "Is Behavioral",
+      "default": false
+     },
+     "present": {
+      "items": {
+       "$ref": "#/components/schemas/StarElement"
+      },
+      "type": "array",
+      "title": "Present"
+     },
+     "probes_used": {
+      "type": "integer",
+      "title": "Probes Used",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "StarState"
+   },
+   "StartInterviewBody": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id"
+    ],
+    "title": "StartInterviewBody",
+    "description": "只传 session_id：InterviewState 有 37 个字段且内含整份题库，\n让它在前后端往返一遍纯属浪费，后端自己从库里取更可靠。"
+   },
+   "StopInterviewBody": {
+    "properties": {
+     "aborted": {
+      "type": "boolean",
+      "title": "Aborted",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "StopInterviewBody"
+   },
+   "StopResult": {
+    "properties": {
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Session Id"
+     },
+     "reviewable": {
+      "type": "boolean",
+      "title": "Reviewable",
+      "default": false
+     },
+     "elapsed_ms": {
+      "type": "integer",
+      "title": "Elapsed Ms",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "StopResult",
+    "description": "不回传完整 InterviewState，前端要的只是收尾去哪。"
+   },
+   "StoredGap": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "resume_id": {
+      "type": "integer",
+      "title": "Resume Id"
+     },
+     "job_id": {
+      "type": "integer",
+      "title": "Job Id"
+     },
+     "report": {
+      "$ref": "#/components/schemas/GapReport"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "resume_id",
+     "job_id",
+     "report"
+    ],
+    "title": "StoredGap"
+   },
+   "StoredJob": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "description": {
+      "$ref": "#/components/schemas/JobDescription"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "description"
+    ],
+    "title": "StoredJob"
+   },
+   "StoredMistake": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Session Id"
+     },
+     "item": {
+      "$ref": "#/components/schemas/MistakeItem"
+     },
+     "hit_count": {
+      "type": "integer",
+      "title": "Hit Count"
+     },
+     "mastered": {
+      "type": "boolean",
+      "title": "Mastered"
+     },
+     "last_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Last Seen At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "session_id",
+     "item",
+     "hit_count",
+     "mastered",
+     "last_seen_at"
+    ],
+    "title": "StoredMistake"
+   },
+   "StoredResume": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "file_path": {
+      "type": "string",
+      "title": "File Path"
+     },
+     "profile": {
+      "$ref": "#/components/schemas/ResumeProfile"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "file_path",
+     "profile"
+    ],
+    "title": "StoredResume"
+   },
+   "SubmitCodeBody": {
+    "properties": {
+     "language": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Language"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     }
+    },
+    "type": "object",
+    "required": [
+     "language",
+     "source"
+    ],
+    "title": "SubmitCodeBody"
+   },
+   "SynthesizeJobBody": {
+    "properties": {
+     "task_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Task Id",
+      "default": ""
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Title"
+     },
+     "tier": {
+      "$ref": "#/components/schemas/CompanyTier"
+     },
+     "level": {
+      "$ref": "#/components/schemas/JobLevel"
+     },
+     "extra": {
+      "type": "string",
+      "title": "Extra",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "tier",
+     "level"
+    ],
+    "title": "SynthesizeJobBody"
+   },
+   "TranscriptAnnotation": {
+    "properties": {
+     "turn_index": {
+      "type": "integer",
+      "title": "Turn Index"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/AnnotationKind"
+     },
+     "quote": {
+      "type": "string",
+      "title": "Quote",
+      "default": ""
+     },
+     "comment": {
+      "type": "string",
+      "title": "Comment",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "turn_index",
+     "kind"
+    ],
+    "title": "TranscriptAnnotation",
+    "description": "逐字稿上的高亮批注，锚定到具体轮次与原文片段。"
+   },
+   "TrendPoint": {
+    "properties": {
+     "session_id": {
+      "type": "integer",
+      "title": "Session Id"
+     },
+     "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Recorded At"
+     },
+     "score": {
+      "type": "number",
+      "title": "Score"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id",
+     "recorded_at",
+     "score"
+    ],
+    "title": "TrendPoint"
+   },
+   "TurnIntent": {
+    "type": "string",
+    "enum": [
+     "ask_new",
+     "follow_up",
+     "star_probe",
+     "boundary_test",
+     "interrupt",
+     "pressure",
+     "acknowledge",
+     "transition",
+     "coding_handoff",
+     "close"
+    ],
+    "title": "TurnIntent",
+    "description": "导演下发给实时模型的意图，实时模型只负责用人设语气表达。"
+   },
+   "TurnRecord": {
+    "properties": {
+     "index": {
+      "type": "integer",
+      "title": "Index"
+     },
+     "speaker": {
+      "$ref": "#/components/schemas/Speaker"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "started_at_ms": {
+      "type": "integer",
+      "title": "Started At Ms"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms",
+      "default": 0
+     },
+     "intent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TurnIntent"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "was_interrupted": {
+      "type": "boolean",
+      "title": "Was Interrupted",
+      "default": false
+     },
+     "question_index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Question Index"
+     }
+    },
+    "type": "object",
+    "required": [
+     "index",
+     "speaker",
+     "text",
+     "started_at_ms"
+    ],
+    "title": "TurnRecord"
+   },
+   "UniqueNameBody": {
+    "properties": {
+     "base": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Base"
+     }
+    },
+    "type": "object",
+    "required": [
+     "base"
+    ],
+    "title": "UniqueNameBody"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}

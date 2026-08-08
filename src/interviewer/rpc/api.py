@@ -8,7 +8,14 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from ..app.context import AppContext
 from ..core.config import AppSettings
 from ..core.errors import InterviewerError
+from ..core.types import ScoreDimension, SessionStatus
+from ..data.repositories.library_repo import StoredGap, StoredJob, StoredResume
+from ..data.repositories.review_repo import StoredMistake, TrendPoint
+from ..data.repositories.session_repo import GlobalStats, SessionSummary
+from ..domain.interview import InterviewState, TurnRecord
 from ..domain.persona import PersonaContract
+from ..domain.review import ReviewReport
+from ..orchestration.recovery import InterruptedSession
 from .hub import EventHub
 from .schemas import (
     ApiKeyBody,
@@ -31,7 +38,6 @@ from .schemas import (
     TaskBody,
     UniqueNameBody,
 )
-from .serialize import to_json
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +145,7 @@ async def engine_finish_early(request: Request) -> Ok:
 # ==================================================================
 
 
-@router.post("/prepare/session", tags=["prepare"])
+@router.post("/prepare/session", response_model=InterviewState, tags=["prepare"])
 async def prepare_build_session(request: Request, body: BuildSessionBody) -> Any:
     state = await _ctx(request).prepare.build_session(
         persona=body.persona,
@@ -151,58 +157,53 @@ async def prepare_build_session(request: Request, body: BuildSessionBody) -> Any
         coding_enabled=body.coding_enabled,
         on_progress=_progress(_hub(request), body),
     )
-    return to_json(state)
+    return state
 
 
-@router.post("/prepare/resume", tags=["prepare"])
+@router.post("/prepare/resume", response_model=StoredResume, tags=["prepare"])
 async def prepare_ingest_resume(request: Request, body: IngestPathBody) -> Any:
     from pathlib import Path
 
-    stored = await _ctx(request).prepare.ingest_resume(
+    return await _ctx(request).prepare.ingest_resume(
         Path(body.path), on_progress=_progress(_hub(request), body)
     )
-    return to_json(stored)
 
 
-@router.post("/prepare/job-file", tags=["prepare"])
+@router.post("/prepare/job-file", response_model=StoredJob, tags=["prepare"])
 async def prepare_ingest_job_file(request: Request, body: IngestPathBody) -> Any:
     from pathlib import Path
 
-    stored = await _ctx(request).prepare.ingest_job_file(
+    return await _ctx(request).prepare.ingest_job_file(
         Path(body.path), on_progress=_progress(_hub(request), body)
     )
-    return to_json(stored)
 
 
-@router.post("/prepare/job-text", tags=["prepare"])
+@router.post("/prepare/job-text", response_model=StoredJob, tags=["prepare"])
 async def prepare_ingest_job_text(request: Request, body: IngestJobTextBody) -> Any:
-    stored = await _ctx(request).prepare.ingest_job_text(
+    return await _ctx(request).prepare.ingest_job_text(
         body.raw, on_progress=_progress(_hub(request), body)
     )
-    return to_json(stored)
 
 
-@router.post("/prepare/job-synthesize", tags=["prepare"])
+@router.post("/prepare/job-synthesize", response_model=StoredJob, tags=["prepare"])
 async def prepare_synthesize_job(request: Request, body: SynthesizeJobBody) -> Any:
-    stored = await _ctx(request).prepare.synthesize_job(
+    return await _ctx(request).prepare.synthesize_job(
         title=body.title,
         tier=body.tier,
         level=body.level,
         extra=body.extra,
         on_progress=_progress(_hub(request), body),
     )
-    return to_json(stored)
 
 
-@router.post("/prepare/diagnose", tags=["prepare"])
+@router.post("/prepare/diagnose", response_model=StoredGap, tags=["prepare"])
 async def prepare_diagnose(request: Request, body: DiagnoseBody) -> Any:
-    stored = await _ctx(request).prepare.diagnose(
+    return await _ctx(request).prepare.diagnose(
         resume_id=body.resume_id,
         job_id=body.job_id,
         refresh=body.refresh,
         on_progress=_progress(_hub(request), body),
     )
-    return to_json(stored)
 
 
 # ==================================================================
@@ -210,19 +211,18 @@ async def prepare_diagnose(request: Request, body: DiagnoseBody) -> Any:
 # ==================================================================
 
 
-@router.post("/review/generate", tags=["review"])
+@router.post("/review/generate", response_model=ReviewReport, tags=["review"])
 async def review_generate(request: Request, body: GenerateReviewBody) -> Any:
     ctx = _ctx(request)
     state = await ctx.sessions.load_state(body.session_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"找不到会话 {body.session_id}")
-    report = await ctx.review.generate(state)
-    return to_json(report)
+    return await ctx.review.generate(state)
 
 
-@router.get("/review/{session_id}", tags=["review"])
+@router.get("/review/{session_id}", response_model=ReviewReport | None, tags=["review"])
 async def review_load(request: Request, session_id: int) -> Any:
-    return to_json(await _ctx(request).review.load(session_id))
+    return await _ctx(request).review.load(session_id)
 
 
 # ==================================================================
@@ -230,29 +230,29 @@ async def review_load(request: Request, session_id: int) -> Any:
 # ==================================================================
 
 
-@router.get("/sessions", tags=["sessions"])
+@router.get("/sessions", response_model=list[SessionSummary], tags=["sessions"])
 async def sessions_list(request: Request, limit: int = Query(default=50, ge=1, le=200)) -> Any:
-    return to_json(await _ctx(request).sessions.list_recent(limit=limit))
+    return await _ctx(request).sessions.list_recent(limit=limit)
 
 
-@router.get("/sessions/stats", tags=["sessions"])
+@router.get("/sessions/stats", response_model=GlobalStats, tags=["sessions"])
 async def sessions_stats(request: Request) -> Any:
-    return to_json(await _ctx(request).sessions.stats())
+    return await _ctx(request).sessions.stats()
 
 
-@router.get("/sessions/{session_id}/state", tags=["sessions"])
+@router.get("/sessions/{session_id}/state", response_model=InterviewState | None, tags=["sessions"])
 async def sessions_state(request: Request, session_id: int) -> Any:
-    return to_json(await _ctx(request).sessions.load_state(session_id))
+    return await _ctx(request).sessions.load_state(session_id)
 
 
-@router.get("/sessions/{session_id}/turns", tags=["sessions"])
+@router.get("/sessions/{session_id}/turns", response_model=list[TurnRecord], tags=["sessions"])
 async def sessions_turns(request: Request, session_id: int) -> Any:
-    return to_json(await _ctx(request).sessions.load_turns(session_id))
+    return await _ctx(request).sessions.load_turns(session_id)
 
 
-@router.get("/sessions/{session_id}/status", tags=["sessions"])
+@router.get("/sessions/{session_id}/status", response_model=SessionStatus | None, tags=["sessions"])
 async def sessions_status(request: Request, session_id: int) -> Any:
-    return to_json(await _ctx(request).sessions.status(session_id))
+    return await _ctx(request).sessions.status(session_id)
 
 
 # ==================================================================
@@ -260,17 +260,16 @@ async def sessions_status(request: Request, session_id: int) -> Any:
 # ==================================================================
 
 
-@router.get("/mistakes", tags=["reviews"])
+@router.get("/mistakes", response_model=list[StoredMistake], tags=["reviews"])
 async def mistakes_list(
     request: Request,
     include_mastered: bool = False,
     topic: str = "",
     limit: int = Query(default=200, ge=1, le=500),
 ) -> Any:
-    items = await _ctx(request).reviews.list_mistakes(
+    return await _ctx(request).reviews.list_mistakes(
         include_mastered=include_mastered, topic=topic, limit=limit
     )
-    return to_json(items)
 
 
 @router.get("/mistakes/counts", response_model=MistakeCounts, tags=["reviews"])
@@ -296,14 +295,18 @@ async def mistakes_delete(request: Request, mistake_id: int) -> Ok:
     return Ok()
 
 
-@router.get("/trends/overall", tags=["reviews"])
+@router.get("/trends/overall", response_model=list[TrendPoint], tags=["reviews"])
 async def trends_overall(request: Request, limit: int = Query(default=20, ge=1, le=100)) -> Any:
-    return to_json(await _ctx(request).reviews.overall_series(limit=limit))
+    return await _ctx(request).reviews.overall_series(limit=limit)
 
 
-@router.get("/trends/dimensions", tags=["reviews"])
+@router.get(
+    "/trends/dimensions",
+    response_model=dict[ScoreDimension, list[TrendPoint]],
+    tags=["reviews"],
+)
 async def trends_dimensions(request: Request, limit: int = Query(default=20, ge=1, le=100)) -> Any:
-    return to_json(await _ctx(request).reviews.dimension_series(limit=limit))
+    return await _ctx(request).reviews.dimension_series(limit=limit)
 
 
 # ==================================================================
@@ -311,14 +314,14 @@ async def trends_dimensions(request: Request, limit: int = Query(default=20, ge=
 # ==================================================================
 
 
-@router.get("/personas", tags=["personas"])
+@router.get("/personas", response_model=list[PersonaContract], tags=["personas"])
 async def personas_list(request: Request) -> Any:
-    return to_json(await _ctx(request).personas.list_all())
+    return await _ctx(request).personas.list_all()
 
 
-@router.post("/personas", tags=["personas"])
+@router.post("/personas", response_model=PersonaContract, tags=["personas"])
 async def personas_save(request: Request, contract: PersonaContract) -> Any:
-    return to_json(await _ctx(request).personas.save(contract))
+    return await _ctx(request).personas.save(contract)
 
 
 @router.delete("/personas/{persona_id}", response_model=Ok, tags=["personas"])
@@ -337,14 +340,14 @@ async def personas_unique_name(request: Request, body: UniqueNameBody) -> dict[s
 # ==================================================================
 
 
-@router.get("/library/resumes", tags=["library"])
+@router.get("/library/resumes", response_model=list[StoredResume], tags=["library"])
 async def library_resumes(request: Request, limit: int = Query(default=30, ge=1, le=200)) -> Any:
-    return to_json(await _ctx(request).library.list_resumes(limit=limit))
+    return await _ctx(request).library.list_resumes(limit=limit)
 
 
-@router.get("/library/jobs", tags=["library"])
+@router.get("/library/jobs", response_model=list[StoredJob], tags=["library"])
 async def library_jobs(request: Request, limit: int = Query(default=30, ge=1, le=200)) -> Any:
-    return to_json(await _ctx(request).library.list_jobs(limit=limit))
+    return await _ctx(request).library.list_jobs(limit=limit)
 
 
 # ==================================================================
@@ -352,9 +355,9 @@ async def library_jobs(request: Request, limit: int = Query(default=30, ge=1, le
 # ==================================================================
 
 
-@router.get("/config", tags=["config"])
+@router.get("/config", response_model=AppSettings, tags=["config"])
 async def config_get(request: Request) -> Any:
-    return to_json(_ctx(request).config.settings)
+    return _ctx(request).config.settings
 
 
 @router.post("/config", response_model=Ok, tags=["config"])
@@ -383,9 +386,9 @@ async def config_set_key(request: Request, body: ApiKeyBody) -> Ok:
 # ==================================================================
 
 
-@router.post("/recovery/scan", tags=["recovery"])
+@router.post("/recovery/scan", response_model=list[InterruptedSession], tags=["recovery"])
 async def recovery_scan(request: Request) -> Any:
-    return to_json(await _ctx(request).recovery.scan())
+    return await _ctx(request).recovery.scan()
 
 
 # ==================================================================

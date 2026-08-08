@@ -1,5 +1,24 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { components } from "./api-schema";
+import type { EventMap, EventName } from "./event-types";
+
+/** 后端数据模型。名字与 Python 侧一致，改后端会在这里直接暴露为类型错误。 */
+export type Schemas = components["schemas"];
+export type SessionSummary = Schemas["SessionSummary"];
+export type GlobalStats = Schemas["GlobalStats"];
+export type InterviewState = Schemas["InterviewState"];
+export type PersonaContract = Schemas["PersonaContract"];
+export type ReviewReport = Schemas["ReviewReport"];
+export type AppSettings = Schemas["AppSettings"];
+export type StoredResume = Schemas["StoredResume"];
+export type StoredJob = Schemas["StoredJob"];
+export type StoredGap = Schemas["StoredGap"];
+export type StoredMistake = Schemas["StoredMistake"];
+export type TrendPoint = Schemas["TrendPoint"];
+export type TurnRecord = Schemas["TurnRecord"];
+export type InterruptedSession = Schemas["InterruptedSession"];
+
 export interface BackendInfo {
   http_base: string;
   ws_events: string;
@@ -122,7 +141,7 @@ export const api = {
 // ==================================================================
 
 export type EventFrame = { event: string; data: Record<string, unknown> };
-type Listener = (data: Record<string, unknown>) => void;
+type Listener = (data: unknown) => void;
 
 const listeners = new Map<string, Set<Listener>>();
 let socket: WebSocket | null = null;
@@ -166,7 +185,8 @@ export async function openEventChannel(): Promise<void> {
     if (!pool) return;
     pool.forEach((fn) => {
       try {
-        fn(frame.data);
+        // 载荷在订阅侧按 EventMap 收窄，分发处只能是宽类型
+        (fn as (data: unknown) => void)(frame.data);
       } catch (err) {
         console.error(`事件处理出错 ${frame.event}`, err);
       }
@@ -197,10 +217,11 @@ export function closeEventChannel(): void {
   socket = null;
 }
 
-/** 订阅一类后端事件，返回取消函数。 */
-export function onEvent<T = Record<string, unknown>>(
-  name: string,
-  fn: (data: T) => void,
+/** 订阅一类后端事件。事件名与载荷类型由生成的 EventMap 约束，写错名字或用错
+ *  字段都会在编译期报错。 */
+export function onEvent<K extends EventName>(
+  name: K,
+  fn: (data: EventMap[K]) => void,
 ): () => void {
   let pool = listeners.get(name);
   if (!pool) {

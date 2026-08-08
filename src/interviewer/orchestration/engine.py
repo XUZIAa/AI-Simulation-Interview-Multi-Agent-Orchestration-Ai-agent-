@@ -158,6 +158,18 @@ class InterviewEngine:
         await self._client.send_directive(anchor.opening_directive(state.persona))
         logger.info("面试开始 session=%s persona=%s", state.session_id, state.persona.name)
 
+    def _remember_gain(self, gain: float) -> None:
+        """记住这台机器的麦克风增益，下次开场不用再爬坡。"""
+        settings = self._store.settings
+        if abs(gain - settings.audio.learned_gain) < 0.15:
+            return
+        try:
+            settings.audio.learned_gain = round(min(12.0, max(1.0, gain)), 2)
+            self._store.save(settings)
+            logger.info("已记住麦克风增益 %.2fx", settings.audio.learned_gain)
+        except Exception:
+            logger.warning("保存麦克风增益失败", exc_info=True)
+
     def _warn_audio_config(self, audio: AudioSettings) -> None:
         """阈值偏高会让服务端听不到说话，而已保存的旧配置不会因为改默认值而更新。"""
         if audio.vad_threshold > 0.35:
@@ -215,6 +227,7 @@ class InterviewEngine:
 
         state.elapsed_ms = self._clock()
         if self._client is not None:
+            self._remember_gain(self._client.capture.auto_gain_factor)
             await self._client.close("面试结束")
             self._client = None
 

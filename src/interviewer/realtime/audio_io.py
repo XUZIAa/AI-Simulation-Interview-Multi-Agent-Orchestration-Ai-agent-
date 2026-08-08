@@ -17,6 +17,13 @@ logger = logging.getLogger(__name__)
 _INT16_MAX = 32768.0
 _LEVEL_GAIN = 3.2  # 可视化放大系数，让正常说话时波形有明显起伏
 
+# 自动增益参数。目标是让说话时的电平落在服务端 VAD 能可靠识别的区间
+_AGC_TARGET = 0.45
+_AGC_FLOOR = 0.02  # 低于此值视为静音，不参与调整，否则会把底噪放大
+_AGC_CEILING = 0.88  # 接近削波
+_AGC_MIN = 1.0
+_AGC_MAX = 12.0
+
 
 def _rms_level(samples: np.ndarray) -> float:
     if samples.size == 0:
@@ -82,6 +89,8 @@ class AudioCapture:
         device_name: str = "",
         block_ms: int = 40,
         gain: float = 1.0,
+        auto_gain: bool = True,
+        initial_agc: float = 1.0,
     ) -> None:
         self._sample_rate = sample_rate
         self._loop = loop
@@ -92,6 +101,26 @@ class AudioCapture:
         self._stream: sd.InputStream | None = None
         self._level = 0.0
         self._muted = False
+        # 自动增益：不同麦克风的输入振幅差几倍，振幅不足会被服务端 VAD 当成静音
+        self._auto_gain = auto_gain
+        self._agc = min(_AGC_MAX, max(_AGC_MIN, initial_agc))
+
+    @property
+    def auto_gain_factor(self) -> float:
+        return self._agc
+
+    def _tune_agc(self, level: float) -> None:
+        """只在有声音时调整，避免静音期把底噪一路放大。"""
+        if level < _AGC_FLOOR:
+            return
+        if level > _AGC_CEILING:
+            self._agc = max(_AGC_MIN, self._agc * 0.90)  # 接近削波，快速回退
+        elif level < _AGC_TARGET:
+            # 差距大时快爬，接近目标时放缓，避免音量忽大忽小
+            step = 1.06 if level < _AGC_TARGET * 0.55 else 1.02
+            self._agc = min(_AGC_MAX, self._agc * step)
+        elif level > _AGC_TARGET * 1.4:
+            self._agc = max(_AGC_MIN, self._agc * 0.99)
 
     @property
     def level(self) -> float:
@@ -115,9 +144,12 @@ class AudioCapture:
             if status:
                 logger.debug("采集状态: %s", status)
             mono = indata[:, 0] if indata.ndim == 2 else indata
-            if self._gain != 1.0:
-                mono = np.clip(mono.astype(np.float32) * self._gain, -32768, 32767).astype(np.int16)
+            factor = self._gain * (self._agc if self._auto_gain else 1.0)
+            if factor != 1.0:
+                mono = np.clip(mono.astype(np.float32) * factor, -32768, 32767).astype(np.int16)
             self._level = _rms_level(mono)
+            if self._auto_gain:
+                self._tune_agc(self._level)
             if self._muted:
                 return
             payload = mono.tobytes()

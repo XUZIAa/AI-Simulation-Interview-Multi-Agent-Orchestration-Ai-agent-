@@ -38,6 +38,9 @@ class AudioSettings(BaseModel):
     semantic_vad: bool = True
     # 仅外放时需要：抑制扬声器回流。戴耳机时开启反而可能误杀真人语音
     echo_guard: bool = False
+    auto_gain: bool = True
+    # 上次学到的自动增益。同一台机器的麦克风增益需求稳定，记下来省去下次爬坡
+    learned_gain: float = Field(default=1.0, ge=1.0, le=12.0)
     # 首句起播蓄水水位。给小了前半句会断续，运行时另有 320ms 下限保护
     playback_buffer_ms: int = Field(default=400, ge=60, le=900)
 

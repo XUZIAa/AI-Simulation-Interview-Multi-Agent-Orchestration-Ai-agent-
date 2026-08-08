@@ -36,6 +36,7 @@ class _LinkStats:
     speech_started: int = 0
     speech_stopped: int = 0
     transcripts: int = 0
+    audio_out: int = 0
 
     def reset(self) -> None:
         self.sent = 0
@@ -44,6 +45,7 @@ class _LinkStats:
         self.speech_started = 0
         self.speech_stopped = 0
         self.transcripts = 0
+        self.audio_out = 0
 
 
 class RealtimeSink(Protocol):
@@ -104,6 +106,8 @@ class RealtimeClient:
             loop=loop,
             device_name=audio.input_device,
             gain=audio.input_gain,
+            auto_gain=audio.auto_gain,
+            initial_agc=audio.learned_gain,
         )
         # 首句水位要足：起播后数据流还不稳，水位低会被反复抽干，
         # 表现为「前半句听不清、后半句正常」
@@ -292,17 +296,24 @@ class RealtimeClient:
             await asyncio.sleep(_STATS_INTERVAL)
             s = self._stats
             logger.info(
-                "链路 %ds：上行 %d 帧，门控丢弃 %d，采集峰值 %.3f｜服务端：语音开始 %d，结束 %d，转写 %d",
+                "链路 %ds：上行 %d 帧(门控丢 %d) 峰值 %.3f 自动增益 %.1fx"
+                "｜服务端：语音 %d/%d 转写 %d｜面试官音频 %d 块",
                 int(_STATS_INTERVAL),
                 s.sent,
                 s.gated,
                 s.peak,
+                self._capture.auto_gain_factor,
                 s.speech_started,
                 s.speech_stopped,
                 s.transcripts,
+                s.audio_out,
             )
-            if s.sent > 0 and s.speech_started == 0 and s.peak < 0.04:
-                logger.warning("采集电平过低（峰值 %.3f），服务端可能判定为静音。请提高麦克风增益", s.peak)
+            if s.sent > 0 and s.speech_started == 0 and 0.02 < s.peak < 0.25:
+                logger.warning(
+                    "说话电平偏低（峰值 %.3f，增益已自动升到 %.1fx），服务端仍可能判定为静音",
+                    s.peak,
+                    self._capture.auto_gain_factor,
+                )
             s.reset()
 
     # ---------- 下行 ----------
@@ -395,6 +406,7 @@ class RealtimeClient:
             chunk = event.get("delta")
             if chunk and self._responding:
                 pcm = base64.b64decode(chunk)
+                self._stats.audio_out += 1
                 self._player.push(pcm)
                 self._sink.on_interviewer_audio(pcm, self._clock())
             return

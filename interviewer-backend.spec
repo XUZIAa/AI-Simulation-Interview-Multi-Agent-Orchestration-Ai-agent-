@@ -1,0 +1,47 @@
+# PyInstaller 配置：把 Python 后端打成独立可执行文件，供 Tauri 以 sidecar 方式分发。
+# 与 Qt 版的 interviewer.spec 并存，两者互不影响。
+from PyInstaller.utils.hooks import collect_submodules
+
+hidden = [
+    # uvicorn 的协议实现全靠运行时按名字加载，静态分析看不见
+    *collect_submodules("uvicorn"),
+    "anyio._backends._asyncio",
+    "aiosqlite",
+    "sqlalchemy.dialects.sqlite.aiosqlite",
+    "keyring.backends.Windows",
+    "sounddevice",
+    "_sounddevice_data",
+]
+
+a = Analysis(
+    ["src/interviewer/backend.py"],
+    pathex=["src"],
+    binaries=[],
+    datas=[],
+    hiddenimports=hidden,
+    # 后端进程不加载任何界面库
+    excludes=["PySide6", "shiboken6", "qasync", "tkinter", "matplotlib"],
+    noarchive=False,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="interviewer-backend",
+    debug=False,
+    strip=False,
+    upx=False,
+    console=True,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name="interviewer-backend",
+)

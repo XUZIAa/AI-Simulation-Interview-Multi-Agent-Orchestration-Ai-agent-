@@ -38,3 +38,10 @@ exports/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 前端与 Tauri
+node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+# sidecar 可执行文件由打包脚本生成，不入库
+desktop/src-tauri/binaries/

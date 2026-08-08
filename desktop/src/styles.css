@@ -1,0 +1,163 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 设计基调：中性灰阶承担 95% 的界面，单一主色只用于强调。
+   之前 Qt 版显廉价，很大程度是到处上饱和色、缺少层级过渡。 */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.21 0.02 265);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.02 265);
+
+  --primary: oklch(0.53 0.19 275);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.968 0.004 265);
+  --secondary-foreground: oklch(0.31 0.02 265);
+
+  --muted: oklch(0.968 0.004 265);
+  --muted-foreground: oklch(0.53 0.015 265);
+
+  --accent: oklch(0.955 0.012 275);
+  --accent-foreground: oklch(0.35 0.06 275);
+
+  --destructive: oklch(0.58 0.21 20);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.62 0.15 158);
+  --warning: oklch(0.72 0.16 70);
+
+  --border: oklch(0.925 0.005 265);
+  --input: oklch(0.925 0.005 265);
+  --ring: oklch(0.53 0.19 275);
+
+  --candidate: oklch(0.62 0.15 158);
+  --interviewer: oklch(0.53 0.19 275);
+
+  --chart-1: oklch(0.53 0.19 275);
+  --chart-2: oklch(0.62 0.15 158);
+  --chart-3: oklch(0.72 0.16 70);
+  --chart-4: oklch(0.58 0.21 20);
+  --chart-5: oklch(0.6 0.13 220);
+}
+
+.dark {
+  --background: oklch(0.16 0.012 265);
+  --foreground: oklch(0.96 0.004 265);
+
+  --card: oklch(0.205 0.014 265);
+  --card-foreground: oklch(0.96 0.004 265);
+  --popover: oklch(0.205 0.014 265);
+  --popover-foreground: oklch(0.96 0.004 265);
+
+  --primary: oklch(0.68 0.17 275);
+  --primary-foreground: oklch(0.16 0.012 265);
+
+  --secondary: oklch(0.26 0.016 265);
+  --secondary-foreground: oklch(0.96 0.004 265);
+
+  --muted: oklch(0.26 0.016 265);
+  --muted-foreground: oklch(0.68 0.014 265);
+
+  --accent: oklch(0.29 0.03 275);
+  --accent-foreground: oklch(0.92 0.02 275);
+
+  --destructive: oklch(0.65 0.2 20);
+  --destructive-foreground: oklch(0.16 0.012 265);
+  --success: oklch(0.7 0.15 158);
+  --warning: oklch(0.78 0.15 70);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.68 0.17 275);
+
+  --candidate: oklch(0.7 0.15 158);
+  --interviewer: oklch(0.68 0.17 275);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-candidate: var(--candidate);
+  --color-interviewer: var(--interviewer);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family:
+      "Inter", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui,
+      sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* 桌面应用不该像网页那样能整体拖选 */
+    user-select: none;
+    overflow: hidden;
+  }
+
+  input,
+  textarea,
+  [contenteditable],
+  .selectable {
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full;
+    background: color-mix(in oklab, var(--muted-foreground) 28%, transparent);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  }
+}

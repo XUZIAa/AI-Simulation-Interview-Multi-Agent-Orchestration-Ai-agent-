@@ -7,7 +7,7 @@ from typing import Any
 
 import keyring
 from keyring.errors import KeyringError, PasswordDeleteError
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from .errors import ConfigError, CredentialMissingError
 from .paths import data_root
@@ -39,10 +39,19 @@ class AudioSettings(BaseModel):
     # 仅外放时需要：抑制扬声器回流。戴耳机时开启反而可能误杀真人语音
     echo_guard: bool = False
     auto_gain: bool = True
-    # 上次学到的自动增益。同一台机器的麦克风增益需求稳定，记下来省去下次爬坡
-    learned_gain: float = Field(default=1.0, ge=1.0, le=12.0)
-    # 首句起播蓄水水位。给小了前半句会断续，运行时另有 320ms 下限保护
-    playback_buffer_ms: int = Field(default=400, ge=60, le=900)
+    # 上次学到的自动增益。同一台机器的麦克风增益需求稳定，记下来省去下次爬坡。
+    # 这是运行时学习值，历史值越界只能钳制、绝不能让整份配置验证失败
+    learned_gain: float = 1.0
+
+    @field_validator("learned_gain", mode="before")
+    @classmethod
+    def _clamp_learned_gain(cls, value: Any) -> float:
+        try:
+            return min(8.0, max(0.5, float(value)))
+        except (TypeError, ValueError):
+            return 1.0
+    # 起播蓄水水位。太小会断续，太大则短回复会卡在缓冲里等，听感像前半句丢了
+    playback_buffer_ms: int = Field(default=240, ge=60, le=900)
 
 
 class RealtimeSettings(BaseModel):

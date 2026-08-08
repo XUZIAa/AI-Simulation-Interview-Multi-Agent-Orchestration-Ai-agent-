@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 _INT16_MAX = 32768.0
 _LEVEL_GAIN = 3.2  # 可视化放大系数，让正常说话时波形有明显起伏
 
-# 自动增益参数。目标是让说话时的电平落在服务端 VAD 能可靠识别的区间
-_AGC_TARGET = 0.45
-_AGC_FLOOR = 0.02  # 低于此值视为静音，不参与调整，否则会把底噪放大
-_AGC_CEILING = 0.88  # 接近削波
-_AGC_MIN = 1.0
-_AGC_MAX = 12.0
+# 自动增益。基于原始样本前馈计算，不能用 _rms_level 那种被 clip 的可视化值，
+# 否则削波之后拿不到"超了多少"的信息，只能反馈震荡。
+_AGC_TARGET_RMS = 4200.0  # 说话时期望的 int16 均方根，服务端 VAD 在这一档最稳
+_AGC_SILENCE_RMS = 220.0  # 低于此视为静音，不参与调整，避免放大底噪
+_AGC_PEAK_LIMIT = 29000.0  # 放大后允许的峰值上界，硬性防削波
+_AGC_MIN = 0.55  # 允许适度衰减：输入本身过响时靠它防削波
+_AGC_MAX = 8.0
+_AGC_SMOOTH = 0.12  # 每帧只朝目标移动这个比例，避免音量突变
 
 
 def _rms_level(samples: np.ndarray) -> float:
@@ -109,18 +111,24 @@ class AudioCapture:
     def auto_gain_factor(self) -> float:
         return self._agc
 
-    def _tune_agc(self, level: float) -> None:
-        """只在有声音时调整，避免静音期把底噪一路放大。"""
-        if level < _AGC_FLOOR:
+    def _tune_agc(self, raw: np.ndarray) -> None:
+        """按原始样本前馈算增益：目标 RMS / 当前 RMS，再夹在防削波上界内。
+
+        必须用未放大的信号，否则放大后的读数会形成反馈环、在削波点来回震荡。
+        """
+        rms = float(np.sqrt(np.mean(np.square(raw.astype(np.float32)))))
+        if rms < _AGC_SILENCE_RMS:
             return
-        if level > _AGC_CEILING:
-            self._agc = max(_AGC_MIN, self._agc * 0.90)  # 接近削波，快速回退
-        elif level < _AGC_TARGET:
-            # 差距大时快爬，接近目标时放缓，避免音量忽大忽小
-            step = 1.06 if level < _AGC_TARGET * 0.55 else 1.02
-            self._agc = min(_AGC_MAX, self._agc * step)
-        elif level > _AGC_TARGET * 1.4:
-            self._agc = max(_AGC_MIN, self._agc * 0.99)
+        peak = float(np.max(np.abs(raw.astype(np.float32))))
+        if peak > 0.0 and peak * self._agc >= _AGC_PEAK_LIMIT:
+            # 已经要削波了，一步降到安全值，不走平滑
+            self._agc = max(_AGC_MIN, _AGC_PEAK_LIMIT / peak)
+            return
+        wanted = _AGC_TARGET_RMS / rms
+        if peak > 0.0:
+            wanted = min(wanted, _AGC_PEAK_LIMIT / peak)
+        wanted = min(_AGC_MAX, max(_AGC_MIN, wanted))
+        self._agc += (wanted - self._agc) * _AGC_SMOOTH
 
     @property
     def level(self) -> float:
@@ -144,12 +152,13 @@ class AudioCapture:
             if status:
                 logger.debug("采集状态: %s", status)
             mono = indata[:, 0] if indata.ndim == 2 else indata
+            # 先用原始信号定增益，再放大：顺序反过来会形成反馈环
+            if self._auto_gain:
+                self._tune_agc(mono)
             factor = self._gain * (self._agc if self._auto_gain else 1.0)
             if factor != 1.0:
                 mono = np.clip(mono.astype(np.float32) * factor, -32768, 32767).astype(np.int16)
             self._level = _rms_level(mono)
-            if self._auto_gain:
-                self._tune_agc(self._level)
             if self._muted:
                 return
             payload = mono.tobytes()

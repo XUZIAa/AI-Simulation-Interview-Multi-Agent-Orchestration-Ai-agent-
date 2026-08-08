@@ -164,7 +164,7 @@ class InterviewEngine:
         if abs(gain - settings.audio.learned_gain) < 0.15:
             return
         try:
-            settings.audio.learned_gain = round(min(12.0, max(1.0, gain)), 2)
+            settings.audio.learned_gain = round(min(8.0, max(0.5, gain)), 2)
             self._store.save(settings)
             logger.info("已记住麦克风增益 %.2fx", settings.audio.learned_gain)
         except Exception:

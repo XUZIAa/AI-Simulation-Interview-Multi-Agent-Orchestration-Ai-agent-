@@ -109,14 +109,12 @@ class RealtimeClient:
             auto_gain=audio.auto_gain,
             initial_agc=audio.learned_gain,
         )
-        # 首句水位要足：起播后数据流还不稳，水位低会被反复抽干，
-        # 表现为「前半句听不清、后半句正常」
-        prefill = max(320, audio.playback_buffer_ms)
+        prefill = max(200, audio.playback_buffer_ms)
         self._player = AudioPlayer(
             sample_rate=provider.output_sample_rate,
             device_name=audio.output_device,
             prefill_ms=prefill,
-            refill_ms=max(180, prefill // 2),
+            refill_ms=max(120, prefill // 2),
         )
         self._echo_gate = EchoGate(
             self._player,

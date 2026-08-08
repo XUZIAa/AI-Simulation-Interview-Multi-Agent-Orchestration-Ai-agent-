@@ -346,7 +346,7 @@ class SettingsView(QWidget):
         self._vad = _SliderRow(minimum=5, maximum=95, value=42, scale=0.01, suffix="", decimals=2)
         self._silence = _SliderRow(minimum=200, maximum=2000, value=620, scale=1.0, suffix="ms", decimals=0)
         self._semantic = QCheckBox("启用语义打断（区分附和与真正插话，推荐开启）")
-        self._echo_guard = QCheckBox("抑制扬声器回流（仅外放时开启；戴耳机开启可能误杀你的说话）")
+        self._echo_guard = QCheckBox("抑制扬声器回流（外放时必须开启，否则面试官会被自己的声音打断）")
         rows = (
             ("麦克风", self._input_combo),
             ("扬声器", self._output_combo),

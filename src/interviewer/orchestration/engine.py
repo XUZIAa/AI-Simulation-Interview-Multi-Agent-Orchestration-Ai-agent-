@@ -183,8 +183,17 @@ class InterviewEngine:
                     fatal=False,
                 )
             )
-        if audio.echo_guard:
-            logger.info("回声门控已开启（外放模式）")
+        if not audio.echo_guard:
+            logger.warning("回声门控已关闭：若使用扬声器外放，面试官会被自己的声音打断")
+            self._bus.emit(
+                EngineFailure(
+                    user_message=(
+                        "回声抑制已关闭。若你在用扬声器外放，"
+                        "请到「设置 → 音频」开启，否则面试官会被自己的声音打断"
+                    ),
+                    fatal=False,
+                )
+            )
 
     async def _warm_models(self) -> None:
         async def ping(role: str) -> None:

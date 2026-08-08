@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_MESSAGE = 24 * 1024 * 1024
 _STATS_INTERVAL = 5.0
+_BARGE_IN_GRACE_MS = 1000  # 面试官开口后的免打断窗口
 
 
 @dataclass
@@ -37,6 +38,8 @@ class _LinkStats:
     speech_stopped: int = 0
     transcripts: int = 0
     audio_out: int = 0
+    echo_events: int = 0
+    grace_skips: int = 0
 
     def reset(self) -> None:
         self.sent = 0
@@ -46,6 +49,8 @@ class _LinkStats:
         self.speech_stopped = 0
         self.transcripts = 0
         self.audio_out = 0
+        self.echo_events = 0
+        self.grace_skips = 0
 
 
 class RealtimeSink(Protocol):
@@ -136,6 +141,7 @@ class RealtimeClient:
         self._candidate_buffer = ""
         self._interviewer_start_ms = 0
         self._interviewer_buffer = ""
+        self._response_start_ms = 0
 
     # ---------- 状态 ----------
 
@@ -248,10 +254,14 @@ class RealtimeClient:
         self._player.clear()
 
     async def _cancel_response(self) -> None:
+        """取消当前正在生成的响应。
+
+        注意不能清 _authorized：那是给下一次 response.create 的许可，
+        若被这里撕掉，服务端随后创建的响应会被我们自己拦截，面试官就哑了。
+        """
         await self._send(proto.response_cancel())
         self._responding = False
         self._response_id = None
-        self._authorized = False
         self._sink.on_response(False)
 
     async def _send(self, event: dict[str, Any]) -> None:
@@ -294,8 +304,9 @@ class RealtimeClient:
             await asyncio.sleep(_STATS_INTERVAL)
             s = self._stats
             logger.info(
-                "链路 %ds：上行 %d 帧(门控丢 %d) 峰值 %.3f 自动增益 %.1fx"
-                "｜服务端：语音 %d/%d 转写 %d｜面试官音频 %d 块",
+                "链路 %ds：上行 %d 帧(回声丢 %d) 电平 %.3f 增益 %.1fx"
+                "｜服务端：语音 %d/%d 转写 %d｜面试官音频 %d 块"
+                "｜回声误触发 %d 免打断跳过 %d",
                 int(_STATS_INTERVAL),
                 s.sent,
                 s.gated,
@@ -305,6 +316,8 @@ class RealtimeClient:
                 s.speech_stopped,
                 s.transcripts,
                 s.audio_out,
+                s.echo_events,
+                s.grace_skips,
             )
             if s.sent > 0 and s.speech_started == 0 and 0.02 < s.peak < 0.25:
                 logger.warning(
@@ -343,10 +356,21 @@ class RealtimeClient:
 
         if kind == proto.SPEECH_STARTED:
             self._stats.speech_started += 1
+            # 面试官正在说话时，这个事件可能是扬声器回流触发的。
+            # 若门控正在抑制回声，就不能当成真人插话去取消响应，
+            # 否则面试官会被自己的声音打断，一句话都说不完。
+            if self._responding and self._echo_gate.suppressing:
+                self._stats.echo_events += 1
+                return
             self._candidate_start_ms = self._clock()
             self._candidate_buffer = ""
             self._sink.on_candidate_speech(True)
             if self._responding:
+                # 面试官刚开口的头一秒不让打断：真人也不会因为对方清嗓子就停下，
+                # 而 VAD 对瞬时噪音很敏感，否则每句话都会被掐断
+                if self._clock() - self._response_start_ms < _BARGE_IN_GRACE_MS:
+                    self._stats.grace_skips += 1
+                    return
                 await self._cancel_response()
                 self._sink.on_barge_in()
             else:
@@ -395,6 +419,7 @@ class RealtimeClient:
             self._authorized = False
             self._responding = True
             self._response_id = (event.get("response") or {}).get("id")
+            self._response_start_ms = self._clock()
             self._interviewer_start_ms = self._clock()
             self._interviewer_buffer = ""
             self._sink.on_response(True)

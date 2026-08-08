@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 _MAX_DELAY_MS = 320  # 扬声器到麦克风的往返延迟上界
 _CORR_THRESHOLD = 0.34  # 归一化互相关峰值超过它即判为回声
 _ENERGY_MARGIN = 1.9  # 真人插话的能量通常明显高于回声
+_STREAK_FRAMES = 12  # 命中回声后维持这么多帧的「正在抑制」状态（约 0.5 秒）
 
 
 class EchoGate:
@@ -33,9 +34,9 @@ class EchoGate:
         self._capture_rate = capture_rate
         self._player_rate = player_rate
         self._ref_samples = int(player_rate * _MAX_DELAY_MS / 1000)
-        # 默认关闭：戴耳机时没有回声，而误判的后果是候选人完全说不上话
         self._enabled = enabled
         self._suppressed_frames = 0
+        self._streak = 0
 
     @property
     def enabled(self) -> bool:
@@ -47,6 +48,15 @@ class EchoGate:
     @property
     def suppressed_frames(self) -> int:
         return self._suppressed_frames
+
+    @property
+    def suppressing(self) -> bool:
+        """最近是否正在抑制回声。
+
+        服务端的「候选人开始说话」可能由回声触发，靠这个状态区分
+        真人插话与扬声器回流，否则面试官会被自己的声音打断。
+        """
+        return self._streak > 0
 
     def is_echo(self, frame: bytes) -> bool:
         if not self._enabled or self._player.pending_ms <= 0:
@@ -70,11 +80,14 @@ class EchoGate:
         peak = _normalized_peak(mic_ref_rate, ref)
         if peak >= _CORR_THRESHOLD:
             self._suppressed_frames += 1
+            self._streak = _STREAK_FRAMES
             return True
+        self._streak = max(0, self._streak - 1)
         return False
 
     def reset(self) -> None:
         self._suppressed_frames = 0
+        self._streak = 0
 
 
 def _normalized_peak(mic: np.ndarray, ref: np.ndarray) -> float:

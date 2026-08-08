@@ -106,20 +106,23 @@ class AudioCapture:
         # 自动增益：不同麦克风的输入振幅差几倍，振幅不足会被服务端 VAD 当成静音
         self._auto_gain = auto_gain
         self._agc = min(_AGC_MAX, max(_AGC_MIN, initial_agc))
+        self._silent_frames = 0
 
     @property
     def auto_gain_factor(self) -> float:
         return self._agc
 
-    def _tune_agc(self, raw: np.ndarray) -> None:
+    def take_silent_frames(self) -> int:
+        """取走并清零静音帧计数，供链路统计判断上行里有多少是没说话的。"""
+        count, self._silent_frames = self._silent_frames, 0
+        return count
+
+    def _tune_agc(self, raw: np.ndarray, rms: float) -> None:
         """按原始样本前馈算增益：目标 RMS / 当前 RMS，再夹在防削波上界内。
 
         必须用未放大的信号，否则放大后的读数会形成反馈环、在削波点来回震荡。
         """
-        rms = float(np.sqrt(np.mean(np.square(raw.astype(np.float32)))))
-        if rms < _AGC_SILENCE_RMS:
-            return
-        peak = float(np.max(np.abs(raw.astype(np.float32))))
+        peak = float(np.max(np.abs(raw)))
         if peak > 0.0 and peak * self._agc >= _AGC_PEAK_LIMIT:
             # 已经要削波了，一步降到安全值，不走平滑
             self._agc = max(_AGC_MIN, _AGC_PEAK_LIMIT / peak)
@@ -152,17 +155,24 @@ class AudioCapture:
             if status:
                 logger.debug("采集状态: %s", status)
             mono = indata[:, 0] if indata.ndim == 2 else indata
+            raw = mono.astype(np.float32)
+            rms = float(np.sqrt(np.mean(np.square(raw))))
+            voiced = rms >= _AGC_SILENCE_RMS
             # 先用原始信号定增益，再放大：顺序反过来会形成反馈环
-            if self._auto_gain:
-                self._tune_agc(mono)
-            factor = self._gain * (self._agc if self._auto_gain else 1.0)
+            if self._auto_gain and voiced:
+                self._tune_agc(raw, rms)
+            # 静音期一律按原样上行。增益是为说话声定的，静音时沿用会把底噪
+            # 一起抬高数倍，服务端 VAD 会当成候选人开口，进而掐掉面试官正在
+            # 生成的响应——面试官因此一句话都说不出来。
+            if not voiced:
+                self._silent_frames += 1
+            factor = self._gain * (self._agc if (self._auto_gain and voiced) else 1.0)
             if factor != 1.0:
-                mono = np.clip(mono.astype(np.float32) * factor, -32768, 32767).astype(np.int16)
+                mono = np.clip(raw * factor, -32768, 32767).astype(np.int16)
             self._level = _rms_level(mono)
             if self._muted:
                 return
-            payload = mono.tobytes()
-            self._loop.call_soon_threadsafe(self._offer, payload)
+            self._loop.call_soon_threadsafe(self._offer, mono.tobytes())
 
         try:
             self._stream = sd.InputStream(

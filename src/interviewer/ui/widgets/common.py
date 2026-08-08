@@ -135,6 +135,41 @@ class AutoLabel(QLabel):
         self.setVisible(bool(text))
 
 
+class ElidedLabel(QLabel):
+    """单行标签，文本长度不参与布局宽度计算，超长直接省略。
+
+    普通 QLabel 的 sizeHint 随文本变宽，放在会自适应分配宽度的布局里，
+    文字一变旁边的区域就跟着缩放——表现为字幕每换一次，画面框就抖一下。
+    """
+
+    def __init__(self, text: str = "", *, color: str = Color.TEXT_MUTED, size: int = 13) -> None:
+        super().__init__()
+        self._full = text
+        self.setStyleSheet(f"color: {color}; font-size: {size}px;")
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self._apply()
+
+    def setText(self, text: str) -> None:
+        self._full = text
+        self._apply()
+
+    def fullText(self) -> str:
+        return self._full
+
+    def _apply(self) -> None:
+        width = self.width()
+        if width <= 0:
+            super().setText(self._full)
+            return
+        shown = self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, width)
+        super().setText(shown)
+        self.setToolTip(self._full if shown != self._full else "")
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._apply()
+
+
 class Badge(QLabel):
     """状态徽章。用颜色区分严重度、阶段、类别。"""
 

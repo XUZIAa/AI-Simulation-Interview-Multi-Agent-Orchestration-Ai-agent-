@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 _MAX_MESSAGE = 24 * 1024 * 1024
 _STATS_INTERVAL = 5.0
 _BARGE_IN_GRACE_MS = 1000  # 面试官开口后的免打断窗口
+_UNHANDLED_LOG_LIMIT = 3  # 同一种未处理事件最多记这么多次
 
 
 @dataclass
@@ -40,6 +41,7 @@ class _LinkStats:
     audio_out: int = 0
     echo_events: int = 0
     grace_skips: int = 0
+    commits: int = 0
 
     def reset(self) -> None:
         self.sent = 0
@@ -51,6 +53,7 @@ class _LinkStats:
         self.audio_out = 0
         self.echo_events = 0
         self.grace_skips = 0
+        self.commits = 0
 
 
 class RealtimeSink(Protocol):
@@ -143,6 +146,7 @@ class RealtimeClient:
         self._response_start_ms = 0
         self._response_chunks = 0
         self._response_chars = 0
+        self._unhandled: dict[str, int] = {}
 
     # ---------- 状态 ----------
 
@@ -239,8 +243,6 @@ class RealtimeClient:
         """下发导演指令。只有这条路径能授予发言权。"""
         await self._send(proto.system_note(text))
         if request_response:
-            # 先把残留的输入音频清掉，服务端才会立刻着手这次响应而不是继续等输入
-            await self._send(proto.audio_clear())
             self._authorized = True
             await self._send(proto.response_create())
 
@@ -307,16 +309,18 @@ class RealtimeClient:
             await asyncio.sleep(_STATS_INTERVAL)
             s = self._stats
             logger.info(
-                "链路 %ds：上行 %d 帧(回声丢 %d) 电平 %.3f 增益 %.1fx"
-                "｜服务端：语音 %d/%d 转写 %d｜面试官音频 %d 块"
+                "链路 %ds：上行 %d 帧(静音 %d 回声丢 %d) 电平 %.3f 增益 %.1fx"
+                "｜服务端：语音 %d/%d 提交 %d 转写 %d｜面试官音频 %d 块"
                 "｜回声误触发 %d 免打断跳过 %d",
                 int(_STATS_INTERVAL),
                 s.sent,
+                self._capture.take_silent_frames(),
                 s.gated,
                 s.peak,
                 self._capture.auto_gain_factor,
                 s.speech_started,
                 s.speech_stopped,
+                s.commits,
                 s.transcripts,
                 s.audio_out,
                 s.echo_events,
@@ -382,6 +386,8 @@ class RealtimeClient:
 
         if kind == proto.SPEECH_STOPPED:
             self._stats.speech_stopped += 1
+            # 发言权归导演，输入的收尾也就得自己做
+            await self._send(proto.audio_commit())
             self._sink.on_candidate_speech(False)
             return
 
@@ -407,6 +413,10 @@ class RealtimeClient:
                 )
             return
 
+        if kind == proto.AUDIO_COMMITTED:
+            self._stats.commits += 1
+            return
+
         if kind == proto.INPUT_TRANSCRIPT_FAILED:
             self._sink.on_error("语音识别失败，请确认麦克风输入正常", fatal=False)
             return
@@ -427,6 +437,7 @@ class RealtimeClient:
             self._response_chars = 0
             self._interviewer_start_ms = self._clock()
             self._interviewer_buffer = ""
+            logger.info("面试官开始发言 response=%s", self._response_id or "未报")
             self._sink.on_response(True)
             return
 
@@ -490,3 +501,20 @@ class RealtimeClient:
             logger.error("实时服务返回错误: %s", message)
             self._sink.on_error(message, fatal=fatal)
             return
+
+        self._log_unhandled(kind, event)
+
+    def _log_unhandled(self, kind: str, event: dict[str, Any]) -> None:
+        """记下没有处理分支的服务端事件。
+
+        「面试官不出声」这类问题，服务端往往已经在某个事件里说明了原因，
+        而静默丢弃等于把诊断信息扔掉，只能靠猜。同一类型记满几次就停，
+        避免高频事件淹没日志。
+        """
+        seen = self._unhandled.get(kind, 0)
+        if seen >= _UNHANDLED_LOG_LIMIT:
+            return
+        self._unhandled[kind] = seen + 1
+        body = {k: v for k, v in event.items() if k not in ("type", "event_id", "delta", "audio")}
+        digest = json.dumps(body, ensure_ascii=False)
+        logger.info("未处理的服务端事件 type=%s body=%s", kind or "(空)", digest[:600])

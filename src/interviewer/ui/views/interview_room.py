@@ -37,7 +37,7 @@ from ..navigation import Navigator, Page
 from ..theme import Color
 from ..widgets.audio_meter import PulseOrb
 from ..widgets.code_editor import LANGUAGES, CodeEditor
-from ..widgets.common import Badge, Card, Panel, faint, h3, icon_button
+from ..widgets.common import Badge, Card, ElidedLabel, Panel, faint, h3, icon_button
 from ..widgets.flow_layout import FlowLayout
 from ..widgets.transcript_view import TranscriptView
 from ..widgets.video_tile import CameraTile, SpeakerFrame
@@ -92,9 +92,9 @@ class InterviewerStage(Panel):
         self.name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name.setStyleSheet(f"color: {Color.STAGE_TEXT}; font-size: 17px; font-weight: 700;")
         layout.addWidget(self.name)
-        self.caption = QLabel("正在接通…")
+        # 这行字每轮都变，用普通标签会把布局宽度带着一起晃
+        self.caption = ElidedLabel("正在接通…", color=Color.STAGE_TEXT_MUTED)
         self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.caption.setStyleSheet(f"color: {Color.STAGE_TEXT_MUTED}; font-size: 13px;")
         layout.addWidget(self.caption)
 
 

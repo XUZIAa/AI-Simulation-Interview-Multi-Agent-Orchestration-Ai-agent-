@@ -77,14 +77,15 @@ def audio_append(audio_b64: str) -> dict[str, Any]:
     return {"type": AUDIO_APPEND, "audio": audio_b64}
 
 
-def audio_clear() -> dict[str, Any]:
-    """丢弃尚未提交的输入音频。
+def audio_commit() -> dict[str, Any]:
+    """提交本轮输入音频，让服务端把这一项收尾。
 
-    候选人的话早在转写完成时就拿到了，缓冲区里剩的是导演思考那几秒采到的
-    环境噪音。带着它请求响应，服务端会一直等这轮输入收尾——而底噪没有明确
-    的语音起止，就等成了死局。
+    服务端的自动提交和自动回复是同一个开关，关掉 create_response 收回发言权，
+    自动提交也一起没了。不补这一步，输入项会永远停在 in_progress，
+    之后所有 response.create 都会挂着等它收尾。
     """
-    return {"type": AUDIO_CLEAR}
+    return {"type": AUDIO_COMMIT}
+
 
 
 def system_note(text: str) -> dict[str, Any]:

@@ -21,6 +21,7 @@ from ..core.events import (
     EngineFailure,
     EventBus,
     InterruptionFired,
+    InterviewerSpeaking,
     LiveScoreUpdated,
     PhaseChanged,
     RealtimeStateChanged,
@@ -85,6 +86,7 @@ class InterviewEngine:
         self._answer_started_ms = 0
         self._candidate_speaking = False
         self._speech_started_ms = 0
+        self._interviewer_voicing = False
 
         self._turn_timer: asyncio.Task[None] | None = None
         self._verbosity_timer: asyncio.Task[None] | None = None
@@ -828,6 +830,10 @@ class InterviewEngine:
                         interviewer=client.player.level,
                     )
                 )
+                speaking = client.is_responding or client.player.pending_ms > 0
+                if speaking != self._interviewer_voicing:
+                    self._interviewer_voicing = speaking
+                    self._bus.emit(InterviewerSpeaking(speaking=speaking))
             # 只触发一次：tick 每 100ms 一跳，反复置位会排出几十次多余的导演调用
             if not self._close_triggered and state.must_close() and state.phase is not InterviewPhase.CLOSING:
                 self._close_triggered = True

@@ -23,6 +23,7 @@ from ...core.events import (
     ElapsedTick,
     EngineFailure,
     InterruptionFired,
+    InterviewerSpeaking,
     PhaseChanged,
     RealtimeStateChanged,
     SpeechActivity,
@@ -356,6 +357,7 @@ class InterviewRoomView(QWidget):
             bus.subscribe(RealtimeStateChanged, self._on_conn),
             bus.subscribe(SpeechActivity, self._on_speech),
             bus.subscribe(AudioLevel, self._on_level),
+            bus.subscribe(InterviewerSpeaking, self._on_interviewer_voice),
             bus.subscribe(TranscriptDelta, self._on_delta),
             bus.subscribe(TranscriptCommitted, self._on_commit),
             bus.subscribe(PhaseChanged, self._on_phase),
@@ -391,13 +393,16 @@ class InterviewRoomView(QWidget):
         self._render_link()
 
     def _on_level(self, event: AudioLevel) -> None:
+        # 电平只驱动动画强度。发言状态另有事件，不能用它判断，
+        # 否则音频块之间的间隙会让状态文字来回跳。
         self._camera.set_level(event.candidate)
         self._stage.orb.set_level(event.interviewer)
-        speaking = event.interviewer > 0.02
-        self._stage.orb.set_active(speaking)
-        self._stage_frame.set_active(speaking)
-        if speaking != self._talking:
-            self._talking = speaking
+
+    def _on_interviewer_voice(self, event: InterviewerSpeaking) -> None:
+        self._stage.orb.set_active(event.speaking)
+        self._stage_frame.set_active(event.speaking)
+        if event.speaking != self._talking:
+            self._talking = event.speaking
             self._render_link()
 
     def _render_link(self) -> None:

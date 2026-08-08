@@ -246,6 +246,7 @@ class AudioPlayer:
         self._stream: sd.OutputStream | None = None
         self._level = 0.0
         self._epoch = 0
+        self._underruns = 0
         # 已真正送到声卡的样本，供回声门控做参考信号
         self._ref_capacity = int(sample_rate * 0.6)
         self._ref = np.zeros(self._ref_capacity, dtype=np.int16)
@@ -260,6 +261,12 @@ class AudioPlayer:
     def pending_ms(self) -> int:
         with self._lock:
             return int(self._length * 1000 / self._sample_rate)
+
+    def take_underruns(self) -> int:
+        """取走并清零欠载次数。每次都是一段听得见的中断。"""
+        with self._lock:
+            count, self._underruns = self._underruns, 0
+            return count
 
     def start(self) -> None:
         if self._stream is not None:
@@ -331,7 +338,10 @@ class AudioPlayer:
                 self._read = (self._read + take) % self._capacity
                 self._length -= take
             if take < frames and not self._draining:
-                # 被抽干了，整体重新蓄水，避免逐块断续
+                # 被抽干了，整体重新蓄水，避免逐块断续。
+                # 从播放态跌回蓄水态就是一次可听见的中断，计数用于量化「一卡一卡」。
+                if not self._priming:
+                    self._underruns += 1
                 self._priming = True
             self._push_reference(out)
         return out

@@ -146,6 +146,7 @@ class RealtimeClient:
         self._response_start_ms = 0
         self._response_chunks = 0
         self._response_chars = 0
+        self._response_bytes = 0
         self._unhandled: dict[str, int] = {}
 
     # ---------- 状态 ----------
@@ -311,7 +312,7 @@ class RealtimeClient:
             logger.info(
                 "链路 %ds：上行 %d 帧(静音 %d 回声丢 %d) 电平 %.3f 增益 %.1fx"
                 "｜服务端：语音 %d/%d 提交 %d 转写 %d｜面试官音频 %d 块"
-                "｜回声误触发 %d 免打断跳过 %d",
+                "｜回声误触发 %d 免打断跳过 %d 播放中断 %d",
                 int(_STATS_INTERVAL),
                 s.sent,
                 self._capture.take_silent_frames(),
@@ -325,6 +326,7 @@ class RealtimeClient:
                 s.audio_out,
                 s.echo_events,
                 s.grace_skips,
+                self._player.take_underruns(),
             )
             if s.sent > 0 and s.speech_started == 0 and 0.02 < s.peak < 0.25:
                 logger.warning(
@@ -372,13 +374,19 @@ class RealtimeClient:
             self._candidate_start_ms = self._clock()
             self._candidate_buffer = ""
             self._sink.on_candidate_speech(True)
-            if self._responding:
+            # 服务端生成完不等于话说完，缓冲里通常还压着没播出去的音频。
+            # 只看 _responding 会把这段尾音当成静默期直接清掉，听起来就是
+            # 面试官说一半没了，而且这一下还绕过了免打断窗口。
+            voicing = self._responding or self._player.pending_ms > 0
+            if voicing:
                 # 面试官刚开口的头一秒不让打断：真人也不会因为对方清嗓子就停下，
                 # 而 VAD 对瞬时噪音很敏感，否则每句话都会被掐断
                 if self._clock() - self._response_start_ms < _BARGE_IN_GRACE_MS:
                     self._stats.grace_skips += 1
                     return
-                await self._cancel_response()
+                if self._responding:
+                    await self._cancel_response()
+                self._player.clear()
                 self._sink.on_barge_in()
             else:
                 self._player.clear()
@@ -435,6 +443,7 @@ class RealtimeClient:
             self._response_start_ms = self._clock()
             self._response_chunks = 0
             self._response_chars = 0
+            self._response_bytes = 0
             self._interviewer_start_ms = self._clock()
             self._interviewer_buffer = ""
             logger.info("面试官开始发言 response=%s", self._response_id or "未报")
@@ -447,6 +456,7 @@ class RealtimeClient:
                 pcm = base64.b64decode(chunk)
                 self._stats.audio_out += 1
                 self._response_chunks += 1
+                self._response_bytes += len(pcm)
                 self._player.push(pcm)
                 self._sink.on_interviewer_audio(pcm, self._clock())
             return
@@ -480,14 +490,23 @@ class RealtimeClient:
             status = str(body.get("status") or "")
             details = body.get("status_details") or {}
             reason = str(details.get("reason") or details.get("type") or "")
+            # 音频秒数与文本字数一比就知道语速对不对：中文正常约 4~5 字/秒。
+            # 生成耗时和缓冲积压则区分服务端是边生成边发还是突发下发。
+            audio_ms = self._response_bytes * 1000 // (2 * self._provider.output_sample_rate)
             logger.info(
-                "面试官发言结束 音频=%d 块 文本=%d 字 状态=%s%s",
+                "面试官发言结束 音频=%d 块/%.1f 秒 文本=%d 字 语速=%.1f 字/秒"
+                "｜生成耗时=%.1f 秒 缓冲积压=%d ms 状态=%s%s",
                 self._response_chunks,
+                audio_ms / 1000,
                 self._response_chars,
+                self._response_chars / (audio_ms / 1000) if audio_ms > 0 else 0.0,
+                max(0, self._clock() - self._response_start_ms) / 1000,
+                self._player.pending_ms,
                 status or "未报",
                 f" 原因={reason}" if reason else "",
             )
             self._response_chunks = 0
+            self._response_bytes = 0
             # 这一轮不会再有音频，让播放器把残留放完而不是继续等水位
             self._player.drain()
             self._sink.on_response(False)

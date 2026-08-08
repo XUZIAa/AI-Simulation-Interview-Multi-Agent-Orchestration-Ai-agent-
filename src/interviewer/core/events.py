@@ -39,6 +39,17 @@ class AudioLevel(Event):
 
 
 @dataclass(slots=True)
+class InterviewerSpeaking(Event):
+    """面试官是否正在发言。
+
+    以「响应未结束或缓冲里还有音频」为界，不用瞬时电平：音频块之间的自然
+    间隙会让电平归零，UI 状态就会在两种文案之间来回跳。
+    """
+
+    speaking: bool
+
+
+@dataclass(slots=True)
 class TranscriptDelta(Event):
     speaker: str
     text: str

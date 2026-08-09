@@ -20,6 +20,7 @@ import {
 import type { PageId } from "@/lib/pages";
 import { DashboardView } from "@/views/dashboard";
 import { PlaceholderView } from "@/views/placeholder";
+import { SettingsView } from "@/views/settings";
 
 type Phase = "booting" | "ready" | "failed";
 
@@ -84,11 +85,9 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <AppShell page={page} onNavigate={setPage} connected={connected}>
-        {page === "dashboard" ? (
-          <DashboardView onNavigate={setPage} interrupted={interrupted} />
-        ) : (
-          <PlaceholderView page={page} />
-        )}
+        {page === "dashboard" && <DashboardView onNavigate={setPage} interrupted={interrupted} />}
+        {page === "settings" && <SettingsView />}
+        {page !== "dashboard" && page !== "settings" && <PlaceholderView page={page} />}
       </AppShell>
       <Toaster position="bottom-right" />
     </TooltipProvider>

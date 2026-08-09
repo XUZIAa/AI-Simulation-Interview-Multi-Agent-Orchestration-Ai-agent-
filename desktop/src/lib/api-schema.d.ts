@@ -586,6 +586,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catalog
+         * @description 供应商、模型、音色与角色的可选项。前端据此渲染，不必抄一份常量。
+         */
+        get: operations["catalog_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audio/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audio Devices
+         * @description 枚举音频设备。设备可能被别的程序占用，失败时返回空列表让界面回落到系统默认。
+         */
+        get: operations["audio_devices_audio_devices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/config/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Config Probe
+         * @description 真连一次，把结果翻成人话。
+         *
+         *     没有这个，用户遇到问题分不清是自己的 Key 不对还是程序有毛病。
+         */
+        post: operations["config_probe_config_probe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/config": {
         parameters: {
             query?: never;
@@ -701,9 +763,9 @@ export interface components {
             /** Rewritten */
             rewritten: string;
             /** Why Better */
-            why_better?: string[];
+            why_better: string[];
             /** Used Assets */
-            used_assets?: string[];
+            used_assets: string[];
         };
         /** ApiKeyBody */
         ApiKeyBody: {
@@ -715,19 +777,33 @@ export interface components {
         /** AppSettings */
         AppSettings: {
             /** Roles */
-            roles?: {
+            roles: {
                 [key: string]: components["schemas"]["RoleBinding"];
             };
-            realtime?: components["schemas"]["RealtimeSettings"];
-            audio?: components["schemas"]["AudioSettings"];
-            orchestration?: components["schemas"]["OrchestrationSettings"];
-            features?: components["schemas"]["FeatureSettings"];
-            custom_chat?: components["schemas"]["CustomEndpoint"];
+            realtime: components["schemas"]["RealtimeSettings"];
+            audio: components["schemas"]["AudioSettings"];
+            orchestration: components["schemas"]["OrchestrationSettings"];
+            features: components["schemas"]["FeatureSettings"];
+            custom_chat: components["schemas"]["CustomEndpoint"];
             /**
              * Active Profile Name
              * @default 我
              */
             active_profile_name: string;
+        };
+        /** AudioDeviceOption */
+        AudioDeviceOption: {
+            /** Name */
+            name: string;
+            /** Index */
+            index: number;
+        };
+        /** AudioDevices */
+        AudioDevices: {
+            /** Inputs */
+            inputs: components["schemas"]["AudioDeviceOption"][];
+            /** Outputs */
+            outputs: components["schemas"]["AudioDeviceOption"][];
         };
         /** AudioSettings */
         AudioSettings: {
@@ -813,9 +889,9 @@ export interface components {
              */
             jd_ref: string;
             /** Follow Ups */
-            follow_ups?: string[];
+            follow_ups: string[];
             /** Expected Signals */
-            expected_signals?: string[];
+            expected_signals: string[];
             /**
              * Must Ask
              * @default false
@@ -845,6 +921,18 @@ export interface components {
             coding_enabled: boolean;
         };
         /**
+         * Catalog
+         * @description 供应商目录。前端据此渲染下拉，不必把这些常量抄一遍。
+         */
+        Catalog: {
+            /** Chat */
+            chat: components["schemas"]["ProviderOption"][];
+            /** Realtime */
+            realtime: components["schemas"]["ProviderOption"][];
+            /** Roles */
+            roles: components["schemas"]["RoleOption"][];
+        };
+        /**
          * CompanyTier
          * @description 公司类型。它决定考什么、怎么问、以及分数怎么加权。
          * @enum {string}
@@ -861,7 +949,7 @@ export interface components {
              */
             base_url: string;
             /** Models */
-            models?: string[];
+            models: string[];
         };
         /**
          * DepthAction
@@ -900,7 +988,7 @@ export interface components {
              */
             reason: string;
             /** Evidence */
-            evidence?: string[];
+            evidence: string[];
         };
         /**
          * DriftKind
@@ -959,15 +1047,15 @@ export interface components {
              */
             verdict: string;
             /** Matches */
-            matches?: components["schemas"]["SkillMatch"][];
+            matches: components["schemas"]["SkillMatch"][];
             /** Gaps */
-            gaps?: components["schemas"]["SkillGap"][];
+            gaps: components["schemas"]["SkillGap"][];
             /** Predicted Questions */
-            predicted_questions?: string[];
+            predicted_questions: string[];
             /** Focus Skills */
-            focus_skills?: string[];
+            focus_skills: string[];
             /** Phase Emphasis */
-            phase_emphasis?: {
+            phase_emphasis: {
                 [key: string]: number;
             };
         };
@@ -999,7 +1087,7 @@ export interface components {
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
+            detail: components["schemas"]["ValidationError"][];
         };
         /** HintBody */
         HintBody: {
@@ -1027,9 +1115,9 @@ export interface components {
              */
             expected_gain: string;
             /** Drills */
-            drills?: components["schemas"]["DrillItem"][];
+            drills: components["schemas"]["DrillItem"][];
             /** Resources */
-            resources?: string[];
+            resources: string[];
             /**
              * Next Mock Setup
              * @default
@@ -1095,7 +1183,7 @@ export interface components {
             session_id: number;
             persona: components["schemas"]["PersonaContract"];
             plan: components["schemas"]["InterviewPlan"];
-            bank?: components["schemas"]["QuestionBank"];
+            bank: components["schemas"]["QuestionBank"];
             /** @default mid_tech */
             company_tier: components["schemas"]["CompanyTier"];
             /** @default mid */
@@ -1143,34 +1231,34 @@ export interface components {
              */
             question_index: number;
             /** Turns */
-            turns?: components["schemas"]["TurnRecord"][];
+            turns: components["schemas"]["TurnRecord"][];
             /** Questions */
-            questions?: components["schemas"]["QuestionRecord"][];
+            questions: components["schemas"]["QuestionRecord"][];
             /** Current Question Index */
-            current_question_index?: number | null;
+            current_question_index: number | null;
             /**
              * Follow Up Depth
              * @default 0
              */
             follow_up_depth: number;
             /** Pending Skills */
-            pending_skills?: string[];
+            pending_skills: string[];
             /** Covered Skills */
-            covered_skills?: string[];
+            covered_skills: string[];
             /** Asked Bank Ids */
-            asked_bank_ids?: number[];
+            asked_bank_ids: number[];
             /** Skill Progress */
-            skill_progress?: {
+            skill_progress: {
                 [key: string]: components["schemas"]["SkillProgress"];
             };
             /** Domains Visited */
-            domains_visited?: string[];
+            domains_visited: string[];
             /**
              * Current Domain
              * @default
              */
             current_domain: string;
-            last_depth_action?: components["schemas"]["DepthAction"] | null;
+            last_depth_action: components["schemas"]["DepthAction"] | null;
             /**
              * Questions Since Personality
              * @default 4
@@ -1198,9 +1286,9 @@ export interface components {
              * @default 0
              */
             turns_since_reanchor: number;
-            star?: components["schemas"]["StarState"];
+            star: components["schemas"]["StarState"];
             /** Live Scores */
-            live_scores?: {
+            live_scores: {
                 [key: string]: number;
             };
             /**
@@ -1242,11 +1330,11 @@ export interface components {
              */
             title: string;
             /** Must Have */
-            must_have?: string[];
+            must_have: string[];
             /** Nice To Have */
-            nice_to_have?: string[];
+            nice_to_have: string[];
             /** Responsibilities */
-            responsibilities?: string[];
+            responsibilities: string[];
         };
         /**
          * JobLevel
@@ -1280,7 +1368,7 @@ export interface components {
              */
             candidate_answer: string;
             /** Key Points */
-            key_points?: string[];
+            key_points: string[];
             /** @default major */
             severity: components["schemas"]["GapSeverity"];
             /**
@@ -1288,6 +1376,13 @@ export interface components {
              * @default
              */
             review_hint: string;
+        };
+        /** ModelOption */
+        ModelOption: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
         };
         /** MuteBody */
         MuteBody: {
@@ -1356,7 +1451,7 @@ export interface components {
          */
         PersonaContract: {
             /** Id */
-            id?: number | null;
+            id: number | null;
             /** Name */
             name: string;
             /** @default custom */
@@ -1378,16 +1473,16 @@ export interface components {
              * @default
              */
             voice: string;
-            speech?: components["schemas"]["SpeechStyle"];
-            pressure?: components["schemas"]["PressureProfile"];
-            probing?: components["schemas"]["ProbingProfile"];
+            speech: components["schemas"]["SpeechStyle"];
+            pressure: components["schemas"]["PressureProfile"];
+            probing: components["schemas"]["ProbingProfile"];
             /**
              * Opening Line
              * @default
              */
             opening_line: string;
             /** Extra Rules */
-            extra_rules?: string[];
+            extra_rules: string[];
             /**
              * Is Builtin
              * @default false
@@ -1432,6 +1527,43 @@ export interface components {
              * @default 5
              */
             tolerance_for_vagueness: number;
+        };
+        /**
+         * ProbeBody
+         * @description 探测某个供应商的密钥与模型是否真的能用。
+         *
+         *     密钥留空则用已保存的那份，这样用户不必为了测试重新粘一遍。
+         */
+        ProbeBody: {
+            /** Provider Key */
+            provider_key: string;
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /**
+             * Api Key
+             * @default
+             */
+            api_key: string;
+            /**
+             * Realtime
+             * @default false
+             */
+            realtime: boolean;
+        };
+        /** ProbeOutcome */
+        ProbeOutcome: {
+            /** Ok */
+            ok: boolean;
+            /** Detail */
+            detail: string;
+            /**
+             * Latency Ms
+             * @default 0
+             */
+            latency_ms: number;
         };
         /** ProbingProfile */
         ProbingProfile: {
@@ -1481,7 +1613,7 @@ export interface components {
              */
             role: string;
             /** Stack */
-            stack?: string[];
+            stack: string[];
             /**
              * Impact
              * @default
@@ -1529,12 +1661,29 @@ export interface components {
              */
             interrupted_count: number;
             /** Per Question */
-            per_question?: components["schemas"]["QuestionProsody"][];
+            per_question: components["schemas"]["QuestionProsody"][];
             /**
              * Verdict
              * @default
              */
             verdict: string;
+        };
+        /** ProviderOption */
+        ProviderOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Credential Key */
+            credential_key: string;
+            /** Console Url */
+            console_url: string;
+            /** Default Model */
+            default_model: string;
+            /** Models */
+            models: string[];
+            /** Voices */
+            voices: components["schemas"]["ModelOption"][];
         };
         /**
          * QuestionBank
@@ -1542,7 +1691,7 @@ export interface components {
          */
         QuestionBank: {
             /** Questions */
-            questions?: components["schemas"]["BankQuestion"][];
+            questions: components["schemas"]["BankQuestion"][];
         };
         /** QuestionProsody */
         QuestionProsody: {
@@ -1593,7 +1742,7 @@ export interface components {
              */
             depth: number;
             /** Bank Question Id */
-            bank_question_id?: number | null;
+            bank_question_id: number | null;
             /**
              * Spoken Text
              * @default
@@ -1615,8 +1764,8 @@ export interface components {
              */
             answer_text: string;
             /** Quality */
-            quality?: number | null;
-            depth_action?: components["schemas"]["DepthAction"] | null;
+            quality: number | null;
+            depth_action: components["schemas"]["DepthAction"] | null;
         };
         /**
          * QuestionSource
@@ -1678,16 +1827,16 @@ export interface components {
              */
             current_title: string;
             /** Skills */
-            skills?: string[];
+            skills: string[];
             /** Projects */
-            projects?: components["schemas"]["ProjectHighlight"][];
+            projects: components["schemas"]["ProjectHighlight"][];
             /**
              * Education
              * @default
              */
             education: string;
             /** Self Claims */
-            self_claims?: string[];
+            self_claims: string[];
         };
         /** ReviewReport */
         ReviewReport: {
@@ -1719,24 +1868,24 @@ export interface components {
              */
             summary: string;
             /** Dimensions */
-            dimensions?: components["schemas"]["DimensionScore"][];
+            dimensions: components["schemas"]["DimensionScore"][];
             /** Annotations */
-            annotations?: components["schemas"]["TranscriptAnnotation"][];
+            annotations: components["schemas"]["TranscriptAnnotation"][];
             /** Rewrites */
-            rewrites?: components["schemas"]["AnswerRewrite"][];
+            rewrites: components["schemas"]["AnswerRewrite"][];
             /** Mistakes */
-            mistakes?: components["schemas"]["MistakeItem"][];
-            prosody?: components["schemas"]["ProsodyReport"];
+            mistakes: components["schemas"]["MistakeItem"][];
+            prosody: components["schemas"]["ProsodyReport"];
             /** Strengths */
-            strengths?: string[];
+            strengths: string[];
             /** Improvements */
-            improvements?: string[];
+            improvements: string[];
             /** Next Actions */
-            next_actions?: string[];
+            next_actions: string[];
             /** Improvement Plans */
-            improvement_plans?: components["schemas"]["ImprovementPlan"][];
+            improvement_plans: components["schemas"]["ImprovementPlan"][];
             /** Abandoned Skills */
-            abandoned_skills?: components["schemas"]["AbandonedSkill"][];
+            abandoned_skills: components["schemas"]["AbandonedSkill"][];
         };
         /**
          * RoleBinding
@@ -1750,6 +1899,13 @@ export interface components {
              * @default
              */
             model: string;
+        };
+        /** RoleOption */
+        RoleOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
         };
         /**
          * ScoreDimension
@@ -1928,9 +2084,9 @@ export interface components {
              */
             speech_rate: number;
             /** Catchphrases */
-            catchphrases?: string[];
+            catchphrases: string[];
             /** Banned Phrases */
-            banned_phrases?: string[];
+            banned_phrases: string[];
         };
         /**
          * StarElement
@@ -1945,7 +2101,7 @@ export interface components {
              */
             is_behavioral: boolean;
             /** Present */
-            present?: components["schemas"]["StarElement"][];
+            present: components["schemas"]["StarElement"][];
             /**
              * Probes Used
              * @default 0
@@ -1975,7 +2131,7 @@ export interface components {
          */
         StopResult: {
             /** Session Id */
-            session_id?: number | null;
+            session_id: number | null;
             /**
              * Reviewable
              * @default false
@@ -2107,14 +2263,14 @@ export interface components {
              * @default 0
              */
             duration_ms: number;
-            intent?: components["schemas"]["TurnIntent"] | null;
+            intent: components["schemas"]["TurnIntent"] | null;
             /**
              * Was Interrupted
              * @default false
              */
             was_interrupted: boolean;
             /** Question Index */
-            question_index?: number | null;
+            question_index: number | null;
         };
         /** UniqueNameBody */
         UniqueNameBody: {
@@ -3159,6 +3315,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StoredJob"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    catalog_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Catalog"];
+                };
+            };
+        };
+    };
+    audio_devices_audio_devices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioDevices"];
+                };
+            };
+        };
+    };
+    config_probe_config_probe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProbeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProbeOutcome"];
                 };
             };
             /** @description Validation Error */

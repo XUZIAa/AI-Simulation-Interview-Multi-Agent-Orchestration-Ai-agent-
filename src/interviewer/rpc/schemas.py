@@ -91,6 +91,62 @@ class ApiKeyBody(BaseModel):
     api_key: str
 
 
+class ProbeBody(BaseModel):
+    """探测某个供应商的密钥与模型是否真的能用。
+
+    密钥留空则用已保存的那份，这样用户不必为了测试重新粘一遍。
+    """
+
+    provider_key: str = Field(min_length=1, max_length=60)
+    model: str = Field(default="", max_length=120)
+    api_key: str = ""
+    realtime: bool = False
+
+
+class ProbeOutcome(BaseModel):
+    ok: bool
+    detail: str
+    latency_ms: int = 0
+
+
+class ModelOption(BaseModel):
+    value: str
+    label: str
+
+
+class ProviderOption(BaseModel):
+    key: str
+    label: str
+    credential_key: str
+    console_url: str
+    default_model: str
+    models: list[str]
+    voices: list[ModelOption] = Field(default_factory=list)
+
+
+class RoleOption(BaseModel):
+    key: str
+    label: str
+
+
+class Catalog(BaseModel):
+    """供应商目录。前端据此渲染下拉，不必把这些常量抄一遍。"""
+
+    chat: list[ProviderOption]
+    realtime: list[ProviderOption]
+    roles: list[RoleOption]
+
+
+class AudioDeviceOption(BaseModel):
+    name: str
+    index: int
+
+
+class AudioDevices(BaseModel):
+    inputs: list[AudioDeviceOption]
+    outputs: list[AudioDeviceOption]
+
+
 class MistakeCounts(BaseModel):
     pending: int
     mastered: int

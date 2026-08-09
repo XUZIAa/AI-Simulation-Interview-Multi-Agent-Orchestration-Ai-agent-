@@ -8,6 +8,12 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from ..app.context import AppContext
 from ..core.config import AppSettings
 from ..core.errors import InterviewerError
+from ..core.providers_catalog import (
+    CHAT_PROVIDERS,
+    REALTIME_PROVIDERS,
+    ROLE_LABELS,
+    VOICE_LABELS,
+)
 from ..core.types import ScoreDimension, SessionStatus
 from ..data.repositories.library_repo import StoredGap, StoredJob, StoredResume
 from ..data.repositories.review_repo import StoredMistake, TrendPoint
@@ -15,19 +21,30 @@ from ..data.repositories.session_repo import GlobalStats, SessionSummary
 from ..domain.interview import InterviewState, TurnRecord
 from ..domain.persona import PersonaContract
 from ..domain.review import ReviewReport
+from ..llm.base import probe_chat
 from ..orchestration.recovery import InterruptedSession
+from ..realtime.audio_io import input_devices, output_devices
+from ..realtime.probe import probe_realtime
 from .hub import EventHub
 from .schemas import (
     ApiKeyBody,
+    AudioDeviceOption,
+    AudioDevices,
     BuildSessionBody,
+    Catalog,
     DiagnoseBody,
     GenerateReviewBody,
     HintBody,
     IngestJobTextBody,
     IngestPathBody,
     MistakeCounts,
+    ModelOption,
     MuteBody,
     Ok,
+    ProbeBody,
+    ProbeOutcome,
+    ProviderOption,
+    RoleOption,
     ServerInfo,
     SetMasteredBody,
     StartInterviewBody,
@@ -348,6 +365,89 @@ async def library_resumes(request: Request, limit: int = Query(default=30, ge=1,
 @router.get("/library/jobs", response_model=list[StoredJob], tags=["library"])
 async def library_jobs(request: Request, limit: int = Query(default=30, ge=1, le=200)) -> Any:
     return await _ctx(request).library.list_jobs(limit=limit)
+
+
+# ==================================================================
+# 供应商目录与设备
+# ==================================================================
+
+
+@router.get("/catalog", response_model=Catalog, tags=["config"])
+async def catalog() -> Catalog:
+    """供应商、模型、音色与角色的可选项。前端据此渲染，不必抄一份常量。"""
+    return Catalog(
+        chat=[
+            ProviderOption(
+                key=p.key,
+                label=p.label,
+                credential_key=p.key,
+                console_url=p.console_url,
+                default_model=p.default_model,
+                models=list(p.models),
+            )
+            for p in CHAT_PROVIDERS.values()
+        ],
+        realtime=[
+            ProviderOption(
+                key=p.key,
+                label=p.label,
+                credential_key=p.credential_key,
+                console_url=p.console_url,
+                default_model=p.default_model,
+                models=list(p.models),
+                voices=[
+                    ModelOption(value=v, label=VOICE_LABELS.get(v, v)) for v in p.voices
+                ],
+            )
+            for p in REALTIME_PROVIDERS.values()
+        ],
+        roles=[RoleOption(key=k, label=v) for k, v in ROLE_LABELS.items()],
+    )
+
+
+@router.get("/audio/devices", response_model=AudioDevices, tags=["config"])
+async def audio_devices() -> AudioDevices:
+    """枚举音频设备。设备可能被别的程序占用，失败时返回空列表让界面回落到系统默认。"""
+    try:
+        ins = [AudioDeviceOption(name=d.name, index=d.index) for d in input_devices()]
+        outs = [AudioDeviceOption(name=d.name, index=d.index) for d in output_devices()]
+    except Exception:
+        logger.warning("枚举音频设备失败", exc_info=True)
+        return AudioDevices(inputs=[], outputs=[])
+    return AudioDevices(inputs=ins, outputs=outs)
+
+
+@router.post("/config/probe", response_model=ProbeOutcome, tags=["config"])
+async def config_probe(request: Request, body: ProbeBody) -> ProbeOutcome:
+    """真连一次，把结果翻成人话。
+
+    没有这个，用户遇到问题分不清是自己的 Key 不对还是程序有毛病。
+    """
+    ctx = _ctx(request)
+    if body.realtime:
+        provider = REALTIME_PROVIDERS.get(body.provider_key)
+        if provider is None:
+            raise HTTPException(status_code=404, detail=f"未知的实时供应商 {body.provider_key}")
+        key = body.api_key or ctx.config.get_api_key(provider.credential_key)
+        result = await probe_realtime(
+            provider=provider,
+            api_key=key,
+            model=body.model or provider.default_model,
+        )
+        return ProbeOutcome(ok=result.ok, detail=result.detail, latency_ms=result.latency_ms)
+
+    chat = CHAT_PROVIDERS.get(body.provider_key)
+    if chat is None:
+        raise HTTPException(status_code=404, detail=f"未知的文本供应商 {body.provider_key}")
+    settings = ctx.config.settings
+    base_url = chat.base_url or settings.custom_chat.base_url
+    result = await probe_chat(
+        provider_key=chat.key,
+        base_url=base_url,
+        api_key=body.api_key or ctx.config.get_api_key(chat.key),
+        model=body.model or chat.default_model,
+    )
+    return ProbeOutcome(ok=result.ok, detail=result.detail, latency_ms=result.latency_ms)
 
 
 # ==================================================================

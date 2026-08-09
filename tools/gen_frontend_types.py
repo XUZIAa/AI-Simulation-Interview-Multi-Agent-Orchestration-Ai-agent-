@@ -39,12 +39,35 @@ _TS_PRIMITIVES = {
 }
 
 
-def dump_spec() -> int:
+def tighten_response_models(spec: dict) -> int:
+    """把响应模型的字段一律标为必填。
+
+    pydantic 里带默认值的字段在 JSON Schema 中不是 required，生成的 TS 因此
+    全是可选，读一个 settings.realtime 都要判空。但 FastAPI 序列化响应时会输出
+    全部字段，可选是失真的。请求体不动——那里的可选是真的可选。
+    """
+    schemas = spec.get("components", {}).get("schemas", {})
+    fixed = 0
+    for name, schema in schemas.items():
+        if name.endswith("Body"):
+            continue
+        props = schema.get("properties")
+        if not props or schema.get("type") != "object":
+            continue
+        if set(schema.get("required", [])) == set(props):
+            continue
+        schema["required"] = list(props)
+        fixed += 1
+    return fixed
+
+
+def dump_spec() -> tuple[int, int]:
     """取 OpenAPI。用 TestClient 免得为了导出 schema 真去开端口。"""
     app = create_app(AppContext(), "schema-export")
     spec = TestClient(app).get("/openapi.json").json()
+    fixed = tighten_response_models(spec)
     SPEC_PATH.write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
-    return len(spec.get("paths", {}))
+    return len(spec.get("paths", {})), fixed
 
 
 def ts_type(annotation: typing.Any) -> str:
@@ -137,8 +160,8 @@ def gen_schema() -> None:
 
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    paths = dump_spec()
-    print(f"接口路径 {paths} 条 -> {SPEC_PATH.name}")
+    paths, fixed = dump_spec()
+    print(f"接口路径 {paths} 条，收紧 {fixed} 个响应模型 -> {SPEC_PATH.name}")
     count = gen_events()
     print(f"事件类型 {count} 个 -> {EVENTS_TS.name}")
     gen_schema()

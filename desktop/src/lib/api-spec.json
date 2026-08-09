@@ -1400,6 +1400,92 @@
     }
    }
   },
+  "/catalog": {
+   "get": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Catalog",
+    "description": "供应商、模型、音色与角色的可选项。前端据此渲染，不必抄一份常量。",
+    "operationId": "catalog_catalog_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Catalog"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/audio/devices": {
+   "get": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Audio Devices",
+    "description": "枚举音频设备。设备可能被别的程序占用，失败时返回空列表让界面回落到系统默认。",
+    "operationId": "audio_devices_audio_devices_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AudioDevices"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/config/probe": {
+   "post": {
+    "tags": [
+     "config"
+    ],
+    "summary": "Config Probe",
+    "description": "真连一次，把结果翻成人话。\n\n没有这个，用户遇到问题分不清是自己的 Key 不对还是程序有毛病。",
+    "operationId": "config_probe_config_probe_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProbeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProbeOutcome"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/config": {
    "get": {
     "tags": [
@@ -1600,7 +1686,10 @@
     },
     "type": "object",
     "required": [
-     "skill"
+     "skill",
+     "domain",
+     "abandoned_at_depth",
+     "attempts"
     ],
     "title": "AbandonedSkill",
     "description": "面试中被放弃深挖的技能点。这是最该补的短板。"
@@ -1653,7 +1742,9 @@
      "question_index",
      "question",
      "original",
-     "rewritten"
+     "rewritten",
+     "why_better",
+     "used_assets"
     ],
     "title": "AnswerRewrite"
    },
@@ -1708,7 +1799,58 @@
      }
     },
     "type": "object",
-    "title": "AppSettings"
+    "title": "AppSettings",
+    "required": [
+     "roles",
+     "realtime",
+     "audio",
+     "orchestration",
+     "features",
+     "custom_chat",
+     "active_profile_name"
+    ]
+   },
+   "AudioDeviceOption": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "index": {
+      "type": "integer",
+      "title": "Index"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "index"
+    ],
+    "title": "AudioDeviceOption"
+   },
+   "AudioDevices": {
+    "properties": {
+     "inputs": {
+      "items": {
+       "$ref": "#/components/schemas/AudioDeviceOption"
+      },
+      "type": "array",
+      "title": "Inputs"
+     },
+     "outputs": {
+      "items": {
+       "$ref": "#/components/schemas/AudioDeviceOption"
+      },
+      "type": "array",
+      "title": "Outputs"
+     }
+    },
+    "type": "object",
+    "required": [
+     "inputs",
+     "outputs"
+    ],
+    "title": "AudioDevices"
    },
    "AudioSettings": {
     "properties": {
@@ -1774,7 +1916,19 @@
      }
     },
     "type": "object",
-    "title": "AudioSettings"
+    "title": "AudioSettings",
+    "required": [
+     "input_device",
+     "output_device",
+     "input_gain",
+     "vad_threshold",
+     "silence_duration_ms",
+     "prefix_padding_ms",
+     "semantic_vad",
+     "auto_gain",
+     "learned_gain",
+     "playback_buffer_ms"
+    ]
    },
    "BankQuestion": {
     "properties": {
@@ -1840,7 +1994,14 @@
      "id",
      "text",
      "skill",
-     "domain"
+     "domain",
+     "depth",
+     "source",
+     "project_ref",
+     "jd_ref",
+     "follow_ups",
+     "expected_signals",
+     "must_ask"
     ],
     "title": "BankQuestion",
     "description": "题库里的一道题。面试中问出的每个新问题都必须来自这里。"
@@ -1905,6 +2066,39 @@
     ],
     "title": "BuildSessionBody"
    },
+   "Catalog": {
+    "properties": {
+     "chat": {
+      "items": {
+       "$ref": "#/components/schemas/ProviderOption"
+      },
+      "type": "array",
+      "title": "Chat"
+     },
+     "realtime": {
+      "items": {
+       "$ref": "#/components/schemas/ProviderOption"
+      },
+      "type": "array",
+      "title": "Realtime"
+     },
+     "roles": {
+      "items": {
+       "$ref": "#/components/schemas/RoleOption"
+      },
+      "type": "array",
+      "title": "Roles"
+     }
+    },
+    "type": "object",
+    "required": [
+     "chat",
+     "realtime",
+     "roles"
+    ],
+    "title": "Catalog",
+    "description": "供应商目录。前端据此渲染下拉，不必把这些常量抄一遍。"
+   },
    "CompanyTier": {
     "type": "string",
     "enum": [
@@ -1937,7 +2131,11 @@
     },
     "type": "object",
     "title": "CustomEndpoint",
-    "description": "自定义端点的用户填写值，仅在 provider = custom 时生效。"
+    "description": "自定义端点的用户填写值，仅在 provider = custom 时生效。",
+    "required": [
+     "base_url",
+     "models"
+    ]
    },
    "DepthAction": {
     "type": "string",
@@ -2006,7 +2204,10 @@
     },
     "type": "object",
     "required": [
-     "dimension"
+     "dimension",
+     "score",
+     "reason",
+     "evidence"
     ],
     "title": "DimensionScore"
    },
@@ -2043,7 +2244,9 @@
     },
     "type": "object",
     "required": [
-     "action"
+     "action",
+     "why",
+     "time_cost"
     ],
     "title": "DrillItem"
    },
@@ -2071,7 +2274,13 @@
      }
     },
     "type": "object",
-    "title": "FeatureSettings"
+    "title": "FeatureSettings",
+    "required": [
+     "camera_enabled",
+     "copilot_enabled",
+     "coding_round_enabled",
+     "save_audio"
+    ]
    },
    "GapReport": {
     "properties": {
@@ -2127,7 +2336,16 @@
      }
     },
     "type": "object",
-    "title": "GapReport"
+    "title": "GapReport",
+    "required": [
+     "match_score",
+     "verdict",
+     "matches",
+     "gaps",
+     "predicted_questions",
+     "focus_skills",
+     "phase_emphasis"
+    ]
    },
    "GapSeverity": {
     "type": "string",
@@ -2221,7 +2439,10 @@
      }
     },
     "type": "object",
-    "title": "HTTPValidationError"
+    "title": "HTTPValidationError",
+    "required": [
+     "detail"
+    ]
    },
    "HintBody": {
     "properties": {
@@ -2272,7 +2493,12 @@
     },
     "type": "object",
     "required": [
-     "focus_area"
+     "focus_area",
+     "diagnosis",
+     "expected_gain",
+     "drills",
+     "resources",
+     "next_mock_setup"
     ],
     "title": "ImprovementPlan",
     "description": "专项提升方案。一个专项对应一条明确的训练路径，不给泛泛建议。"
@@ -2593,7 +2819,41 @@
     "required": [
      "session_id",
      "persona",
-     "plan"
+     "plan",
+     "bank",
+     "company_tier",
+     "job_level",
+     "job_title",
+     "resume_digest",
+     "jd_digest",
+     "gap_digest",
+     "phase",
+     "phase_started_at_ms",
+     "elapsed_ms",
+     "turn_index",
+     "question_index",
+     "turns",
+     "questions",
+     "current_question_index",
+     "follow_up_depth",
+     "pending_skills",
+     "covered_skills",
+     "asked_bank_ids",
+     "skill_progress",
+     "domains_visited",
+     "current_domain",
+     "last_depth_action",
+     "questions_since_personality",
+     "personality_probes_used",
+     "interrupts_used_in_phase",
+     "drift_count",
+     "last_drift",
+     "turns_since_reanchor",
+     "star",
+     "live_scores",
+     "coding_active",
+     "code_language",
+     "code_snapshot"
     ],
     "title": "InterviewState",
     "description": "权威状态。实时模型的记忆不可信，一切以此为准，且每轮落盘。"
@@ -2643,7 +2903,16 @@
      }
     },
     "type": "object",
-    "title": "JobDescription"
+    "title": "JobDescription",
+    "required": [
+     "source_name",
+     "raw_text",
+     "company",
+     "title",
+     "must_have",
+     "nice_to_have",
+     "responsibilities"
+    ]
    },
    "JobLevel": {
     "type": "string",
@@ -2714,9 +2983,33 @@
     },
     "type": "object",
     "required": [
-     "knowledge_point"
+     "knowledge_point",
+     "topic",
+     "question",
+     "candidate_answer",
+     "key_points",
+     "severity",
+     "review_hint"
     ],
     "title": "MistakeItem"
+   },
+   "ModelOption": {
+    "properties": {
+     "value": {
+      "type": "string",
+      "title": "Value"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     }
+    },
+    "type": "object",
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "ModelOption"
    },
    "MuteBody": {
     "properties": {
@@ -2740,7 +3033,10 @@
      }
     },
     "type": "object",
-    "title": "Ok"
+    "title": "Ok",
+    "required": [
+     "ok"
+    ]
    },
    "OrchestrationSettings": {
     "properties": {
@@ -2802,7 +3098,17 @@
      }
     },
     "type": "object",
-    "title": "OrchestrationSettings"
+    "title": "OrchestrationSettings",
+    "required": [
+     "reanchor_every_turns",
+     "max_follow_up_depth",
+     "director_timeout_ms",
+     "guard_timeout_ms",
+     "interrupt_budget_per_phase",
+     "verbose_seconds_before_interrupt",
+     "turn_gap_ms",
+     "planned_minutes"
+    ]
    },
    "PersonaArchetype": {
     "type": "string",
@@ -2892,7 +3198,19 @@
     },
     "type": "object",
     "required": [
-     "name"
+     "id",
+     "name",
+     "archetype",
+     "company_tier",
+     "job_title",
+     "company_flavor",
+     "voice",
+     "speech",
+     "pressure",
+     "probing",
+     "opening_line",
+     "extra_rules",
+     "is_builtin"
     ],
     "title": "PersonaContract",
     "description": "结构化人设契约。所有人格行为都由此编译而来，不允许在别处写死语气。"
@@ -2915,7 +3233,8 @@
     "type": "object",
     "required": [
      "phase",
-     "budget_ms"
+     "budget_ms",
+     "min_questions"
     ],
     "title": "PhaseSlot"
    },
@@ -2958,7 +3277,70 @@
      }
     },
     "type": "object",
-    "title": "PressureProfile"
+    "title": "PressureProfile",
+    "required": [
+     "aggression",
+     "interrupt_tendency",
+     "silence_pressure",
+     "challenge_frequency",
+     "tolerance_for_vagueness"
+    ]
+   },
+   "ProbeBody": {
+    "properties": {
+     "provider_key": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Provider Key"
+     },
+     "model": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Model",
+      "default": ""
+     },
+     "api_key": {
+      "type": "string",
+      "title": "Api Key",
+      "default": ""
+     },
+     "realtime": {
+      "type": "boolean",
+      "title": "Realtime",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "provider_key"
+    ],
+    "title": "ProbeBody",
+    "description": "探测某个供应商的密钥与模型是否真的能用。\n\n密钥留空则用已保存的那份，这样用户不必为了测试重新粘一遍。"
+   },
+   "ProbeOutcome": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     },
+     "latency_ms": {
+      "type": "integer",
+      "title": "Latency Ms",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "ok",
+     "detail",
+     "latency_ms"
+    ],
+    "title": "ProbeOutcome"
    },
    "ProbingProfile": {
     "properties": {
@@ -3013,7 +3395,16 @@
      }
     },
     "type": "object",
-    "title": "ProbingProfile"
+    "title": "ProbingProfile",
+    "required": [
+     "divergence",
+     "follow_up_depth",
+     "project_focus",
+     "fundamentals_focus",
+     "system_design_focus",
+     "coding_focus",
+     "behavioral_focus"
+    ]
    },
    "ProjectHighlight": {
     "properties": {
@@ -3046,7 +3437,11 @@
     },
     "type": "object",
     "required": [
-     "name"
+     "name",
+     "role",
+     "stack",
+     "impact",
+     "summary"
     ],
     "title": "ProjectHighlight"
    },
@@ -3097,7 +3492,66 @@
     },
     "type": "object",
     "title": "ProsodyReport",
-    "description": "副语言指标全部由规则计算，不交给模型编造。"
+    "description": "副语言指标全部由规则计算，不交给模型编造。",
+    "required": [
+     "words_per_minute",
+     "filler_ratio",
+     "pause_ratio",
+     "longest_pause_ms",
+     "speaking_ratio",
+     "interrupted_count",
+     "per_question",
+     "verdict"
+    ]
+   },
+   "ProviderOption": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "credential_key": {
+      "type": "string",
+      "title": "Credential Key"
+     },
+     "console_url": {
+      "type": "string",
+      "title": "Console Url"
+     },
+     "default_model": {
+      "type": "string",
+      "title": "Default Model"
+     },
+     "models": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Models"
+     },
+     "voices": {
+      "items": {
+       "$ref": "#/components/schemas/ModelOption"
+      },
+      "type": "array",
+      "title": "Voices"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label",
+     "credential_key",
+     "console_url",
+     "default_model",
+     "models",
+     "voices"
+    ],
+    "title": "ProviderOption"
    },
    "QuestionBank": {
     "properties": {
@@ -3111,7 +3565,10 @@
     },
     "type": "object",
     "title": "QuestionBank",
-    "description": "面试前一次性生成，面试中只读。导演只能从这里挑新问题。"
+    "description": "面试前一次性生成，面试中只读。导演只能从这里挑新问题。",
+    "required": [
+     "questions"
+    ]
    },
    "QuestionProsody": {
     "properties": {
@@ -3142,7 +3599,11 @@
     },
     "type": "object",
     "required": [
-     "question_index"
+     "question_index",
+     "words_per_minute",
+     "filler_count",
+     "pause_ratio",
+     "longest_pause_ms"
     ],
     "title": "QuestionProsody"
    },
@@ -3235,7 +3696,17 @@
      "index",
      "phase",
      "intent",
-     "brief"
+     "brief",
+     "target_skill",
+     "domain",
+     "depth",
+     "bank_question_id",
+     "spoken_text",
+     "asked_at_ms",
+     "follow_up_depth",
+     "answer_text",
+     "quality",
+     "depth_action"
     ],
     "title": "QuestionRecord"
    },
@@ -3278,7 +3749,13 @@
      }
     },
     "type": "object",
-    "title": "RealtimeSettings"
+    "title": "RealtimeSettings",
+    "required": [
+     "provider",
+     "model",
+     "voice",
+     "temperature"
+    ]
    },
    "ResumeProfile": {
     "properties": {
@@ -3336,7 +3813,18 @@
     },
     "type": "object",
     "title": "ResumeProfile",
-    "description": "从简历原文抽出的结构化画像，后续所有个性化都基于它。"
+    "description": "从简历原文抽出的结构化画像，后续所有个性化都基于它。",
+    "required": [
+     "source_name",
+     "raw_text",
+     "candidate_name",
+     "years_of_experience",
+     "current_title",
+     "skills",
+     "projects",
+     "education",
+     "self_claims"
+    ]
    },
    "ReviewReport": {
     "properties": {
@@ -3440,7 +3928,22 @@
     },
     "type": "object",
     "required": [
-     "session_id"
+     "session_id",
+     "duration_ms",
+     "reviewable",
+     "overall_score",
+     "headline",
+     "summary",
+     "dimensions",
+     "annotations",
+     "rewrites",
+     "mistakes",
+     "prosody",
+     "strengths",
+     "improvements",
+     "next_actions",
+     "improvement_plans",
+     "abandoned_skills"
     ],
     "title": "ReviewReport"
    },
@@ -3458,10 +3961,29 @@
     },
     "type": "object",
     "required": [
-     "provider"
+     "provider",
+     "model"
     ],
     "title": "RoleBinding",
     "description": "三类文本角色各自绑定的模型，允许分别指定以平衡成本与质量。"
+   },
+   "RoleOption": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label"
+    ],
+    "title": "RoleOption"
    },
    "ScoreDimension": {
     "type": "string",
@@ -3628,7 +4150,13 @@
     },
     "type": "object",
     "required": [
-     "skill"
+     "skill",
+     "severity",
+     "jd_requirement",
+     "why_gap",
+     "bridge_asset",
+     "talking_script",
+     "study_hint"
     ],
     "title": "SkillGap",
     "description": "技能盲区 + 可直接照着说的补救话术。"
@@ -3654,7 +4182,9 @@
     },
     "type": "object",
     "required": [
-     "skill"
+     "skill",
+     "evidence",
+     "strength"
     ],
     "title": "SkillMatch"
    },
@@ -3707,7 +4237,14 @@
     "type": "object",
     "required": [
      "skill",
-     "domain"
+     "domain",
+     "depth_reached",
+     "attempts",
+     "attempts_at_depth",
+     "low_streak",
+     "best_quality",
+     "exhausted",
+     "abandoned_at_depth"
     ],
     "title": "SkillProgress",
     "description": "单个技能点的推进状态。这是「越来越深还是换领域」的唯一依据。"
@@ -3773,7 +4310,16 @@
      }
     },
     "type": "object",
-    "title": "SpeechStyle"
+    "title": "SpeechStyle",
+    "required": [
+     "code_switch",
+     "verbosity",
+     "warmth",
+     "formality",
+     "speech_rate",
+     "catchphrases",
+     "banned_phrases"
+    ]
    },
    "StarElement": {
     "type": "string",
@@ -3806,7 +4352,12 @@
      }
     },
     "type": "object",
-    "title": "StarState"
+    "title": "StarState",
+    "required": [
+     "is_behavioral",
+     "present",
+     "probes_used"
+    ]
    },
    "StartInterviewBody": {
     "properties": {
@@ -3859,7 +4410,12 @@
     },
     "type": "object",
     "title": "StopResult",
-    "description": "不回传完整 InterviewState，前端要的只是收尾去哪。"
+    "description": "不回传完整 InterviewState，前端要的只是收尾去哪。",
+    "required": [
+     "session_id",
+     "reviewable",
+     "elapsed_ms"
+    ]
    },
    "StoredGap": {
     "properties": {
@@ -4059,7 +4615,9 @@
     "type": "object",
     "required": [
      "turn_index",
-     "kind"
+     "kind",
+     "quote",
+     "comment"
     ],
     "title": "TranscriptAnnotation",
     "description": "逐字稿上的高亮批注，锚定到具体轮次与原文片段。"
@@ -4159,7 +4717,11 @@
      "index",
      "speaker",
      "text",
-     "started_at_ms"
+     "started_at_ms",
+     "duration_ms",
+     "intent",
+     "was_interrupted",
+     "question_index"
     ],
     "title": "TurnRecord"
    },

@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   BackendError,
   type InterruptedSession,
+  type InterviewState,
   api,
   ensureBackend,
   isEventChannelOpen,
@@ -24,6 +25,7 @@ import { MistakesView } from "@/views/mistakes";
 import { PersonaView } from "@/views/persona";
 import { PrepareView } from "@/views/prepare";
 import { ReviewView } from "@/views/review";
+import { RoomView } from "@/views/room";
 import { SettingsView } from "@/views/settings";
 
 type Phase = "booting" | "ready" | "failed";
@@ -36,6 +38,7 @@ export default function App() {
   const [interrupted, setInterrupted] = useState<InterruptedSession[]>([]);
   // 复盘页要知道看哪一场、是否需要现场生成
   const [review, setReview] = useState<{ sessionId: number; generate: boolean } | null>(null);
+  const [session, setSession] = useState<InterviewState | null>(null);
   const booted = useRef(false);
 
   const openReview = (sessionId: number, generate = false) => {
@@ -110,8 +113,26 @@ export default function App() {
         {page === "prepare" && (
           <PrepareView
             onStart={(state) => {
-              toast.info("题库已生成并落库，面试房间还在迁移中");
-              openReview(state.session_id, false);
+              setSession(state);
+              setPage("room");
+            }}
+          />
+        )}
+        {page === "room" && session && (
+          <RoomView
+            state={session}
+            onFinished={(sessionId, reviewable) => {
+              setSession(null);
+              if (reviewable) {
+                openReview(sessionId, true);
+              } else {
+                toast.warning("面试不足 5 分钟，未生成完整复盘");
+                setPage("dashboard");
+              }
+            }}
+            onAbort={() => {
+              setSession(null);
+              setPage("prepare");
             }}
           />
         )}

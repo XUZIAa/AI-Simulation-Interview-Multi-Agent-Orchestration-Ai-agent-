@@ -42,9 +42,10 @@ interface Props {
   onNavigate: (page: PageId) => void;
   /** 启动时认领到的中断面试。扫描会改写会话状态，只能在启动时做一次 */
   interrupted: InterruptedSession[];
+  onOpenReview: (sessionId: number, generate?: boolean) => void;
 }
 
-export function DashboardView({ onNavigate, interrupted }: Props) {
+export function DashboardView({ onNavigate, interrupted, onOpenReview }: Props) {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [personas, setPersonas] = useState<PersonaContract[]>([]);
@@ -266,26 +267,32 @@ export function DashboardView({ onNavigate, interrupted }: Props) {
             ) : (
               <ul className="divide-border divide-y">
                 {sessions.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{s.title}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {s.persona_name} · {new Date(s.created_at).toLocaleString("zh-CN")} ·{" "}
-                        {Math.round(s.duration_ms / 60000)} 分钟
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
-                        s.overall_score != null
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground",
-                      )}
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenReview(s.id)}
+                      className="hover:bg-accent/60 -mx-2 flex w-full items-center justify-between gap-3 rounded-md px-2 py-2.5 text-left transition-colors"
                     >
-                      {s.overall_score != null
-                        ? s.overall_score.toFixed(1)
-                        : (STATUS_TEXT[s.status] ?? s.status)}
-                    </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{s.title}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {s.persona_name} · {new Date(s.created_at).toLocaleString("zh-CN")} ·{" "}
+                          {Math.round(s.duration_ms / 60000)} 分钟
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
+                          s.overall_score != null
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {s.overall_score != null
+                          ? s.overall_score.toFixed(1)
+                          : (STATUS_TEXT[s.status] ?? s.status)}
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>

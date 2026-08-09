@@ -23,6 +23,7 @@ import { GrowthView } from "@/views/growth";
 import { MistakesView } from "@/views/mistakes";
 import { PersonaView } from "@/views/persona";
 import { PrepareView } from "@/views/prepare";
+import { ReviewView } from "@/views/review";
 import { SettingsView } from "@/views/settings";
 
 type Phase = "booting" | "ready" | "failed";
@@ -33,7 +34,14 @@ export default function App() {
   const [page, setPage] = useState<PageId>("dashboard");
   const [connected, setConnected] = useState(false);
   const [interrupted, setInterrupted] = useState<InterruptedSession[]>([]);
+  // 复盘页要知道看哪一场、是否需要现场生成
+  const [review, setReview] = useState<{ sessionId: number; generate: boolean } | null>(null);
   const booted = useRef(false);
+
+  const openReview = (sessionId: number, generate = false) => {
+    setReview({ sessionId, generate });
+    setPage("review");
+  };
 
   const boot = useCallback(async () => {
     setPhase("booting");
@@ -88,14 +96,30 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <AppShell page={page} onNavigate={setPage} connected={connected}>
-        {page === "dashboard" && <DashboardView onNavigate={setPage} interrupted={interrupted} />}
+        {page === "dashboard" && (
+          <DashboardView
+            onNavigate={setPage}
+            interrupted={interrupted}
+            onOpenReview={openReview}
+          />
+        )}
         {page === "settings" && <SettingsView />}
         {page === "mistakes" && <MistakesView onNavigate={setPage} />}
         {page === "growth" && <GrowthView onNavigate={setPage} />}
         {page === "persona" && <PersonaView />}
         {page === "prepare" && (
           <PrepareView
-            onStart={() => toast.info("面试房间还在迁移中，题库已生成并落库")}
+            onStart={(state) => {
+              toast.info("题库已生成并落库，面试房间还在迁移中");
+              openReview(state.session_id, false);
+            }}
+          />
+        )}
+        {page === "review" && review && (
+          <ReviewView
+            sessionId={review.sessionId}
+            autoGenerate={review.generate}
+            onBack={() => setPage("dashboard")}
           />
         )}
       </AppShell>

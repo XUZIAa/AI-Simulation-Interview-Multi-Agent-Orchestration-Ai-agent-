@@ -147,6 +147,7 @@ class RealtimeClient:
         self._response_chunks = 0
         self._response_chars = 0
         self._response_bytes = 0
+        self._pending_speech = False
         self._unhandled: dict[str, int] = {}
 
     # ---------- 状态 ----------
@@ -242,10 +243,20 @@ class RealtimeClient:
 
     async def send_directive(self, text: str, *, request_response: bool = True) -> None:
         """下发导演指令。只有这条路径能授予发言权。"""
+        # 导演由「转写完成」触发，而输入收尾由「语音结束」触发，两者先后不保证。
+        # 若带着未提交的音频请求响应，服务端会搁置这次请求去等输入收尾，面试官就哑了。
+        await self._commit_input()
         await self._send(proto.system_note(text))
         if request_response:
             self._authorized = True
             await self._send(proto.response_create())
+
+    async def _commit_input(self) -> None:
+        """提交本轮输入音频。没有待提交的语音时什么都不做——空缓冲区提交会被服务端拒绝。"""
+        if not self._pending_speech:
+            return
+        self._pending_speech = False
+        await self._send(proto.audio_commit())
 
     async def barge_in(self, directive: str) -> None:
         """面试官主动插话：先掐掉可能在播的音频，再立刻要求生成。"""
@@ -309,10 +320,11 @@ class RealtimeClient:
         while True:
             await asyncio.sleep(_STATS_INTERVAL)
             s = self._stats
+            dropped = self._player.take_overflow_ms()
             logger.info(
                 "链路 %ds：上行 %d 帧(静音 %d 回声丢 %d) 电平 %.3f 增益 %.1fx"
                 "｜服务端：语音 %d/%d 提交 %d 转写 %d｜面试官音频 %d 块"
-                "｜回声误触发 %d 免打断跳过 %d 播放中断 %d",
+                "｜回声误触发 %d 免打断跳过 %d 播放中断 %d 丢音频 %d ms",
                 int(_STATS_INTERVAL),
                 s.sent,
                 self._capture.take_silent_frames(),
@@ -327,7 +339,13 @@ class RealtimeClient:
                 s.echo_events,
                 s.grace_skips,
                 self._player.take_underruns(),
+                dropped,
             )
+            if dropped > 0:
+                logger.warning(
+                    "播放缓冲溢出丢掉 %d ms 音频，面试官会听起来跳字。缓冲容量不足以装下一整段发言",
+                    dropped,
+                )
             if s.sent > 0 and s.speech_started == 0 and 0.02 < s.peak < 0.25:
                 logger.warning(
                     "说话电平偏低（峰值 %.3f，增益已自动升到 %.1fx），服务端仍可能判定为静音",
@@ -365,6 +383,7 @@ class RealtimeClient:
 
         if kind == proto.SPEECH_STARTED:
             self._stats.speech_started += 1
+            self._pending_speech = True
             # 面试官正在说话时，这个事件可能是扬声器回流触发的。
             # 若门控正在抑制回声，就不能当成真人插话去取消响应，
             # 否则面试官会被自己的声音打断，一句话都说不完。
@@ -394,8 +413,7 @@ class RealtimeClient:
 
         if kind == proto.SPEECH_STOPPED:
             self._stats.speech_stopped += 1
-            # 发言权归导演，输入的收尾也就得自己做
-            await self._send(proto.audio_commit())
+            await self._commit_input()
             self._sink.on_candidate_speech(False)
             return
 

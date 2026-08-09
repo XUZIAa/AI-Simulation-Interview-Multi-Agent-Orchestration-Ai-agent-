@@ -218,6 +218,9 @@ class AudioPlayer:
     带抖动缓冲：实时语音的音频块是突发到达的，一有空档就用静音补会造成
     每个回调都断一下，听感上像卡顿且语速失真。改为先蓄水到水位再起播，
     中途被抽干就整体重新蓄水，让声音要么连续、要么明确停顿。
+
+    容量必须装得下一整段发言。服务端是突发下发的——十秒的语音可能三秒内发完，
+    缓冲装不下就会丢掉排队待播的样本，听感是「卡一下、跳过几个字」。
     """
 
     def __init__(
@@ -227,7 +230,7 @@ class AudioPlayer:
         device_name: str = "",
         prefill_ms: int = 260,
         refill_ms: int = 140,
-        capacity_ms: int = 4000,
+        capacity_ms: int = 30000,
         block_ms: int = 40,
     ) -> None:
         self._sample_rate = sample_rate
@@ -247,6 +250,7 @@ class AudioPlayer:
         self._level = 0.0
         self._epoch = 0
         self._underruns = 0
+        self._overflow_ms = 0
         # 已真正送到声卡的样本，供回声门控做参考信号
         self._ref_capacity = int(sample_rate * 0.6)
         self._ref = np.zeros(self._ref_capacity, dtype=np.int16)
@@ -267,6 +271,12 @@ class AudioPlayer:
         with self._lock:
             count, self._underruns = self._underruns, 0
             return count
+
+    def take_overflow_ms(self) -> int:
+        """取走并清零因缓冲溢出而丢弃的音频时长。不为零就意味着有话被吃掉了。"""
+        with self._lock:
+            value, self._overflow_ms = self._overflow_ms, 0
+            return value
 
     def start(self) -> None:
         if self._stream is not None:
@@ -305,9 +315,12 @@ class AudioPlayer:
             self._draining = False
             available = self._capacity - self._length
             if samples.size > available:
+                # 丢的是已经排队待播的语音，听感就是「卡一下、跳过几个字」。
+                # 到这一步说明容量不足以装下一整段发言，属于配置问题而非正常现象。
                 drop = samples.size - available
                 self._read = (self._read + drop) % self._capacity
                 self._length -= drop
+                self._overflow_ms += int(drop * 1000 / self._sample_rate)
             write = (self._read + self._length) % self._capacity
             first = min(samples.size, self._capacity - write)
             self._buffer[write : write + first] = samples[:first]

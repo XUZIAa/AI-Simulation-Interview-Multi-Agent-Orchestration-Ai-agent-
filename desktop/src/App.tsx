@@ -22,7 +22,7 @@ import { DashboardView } from "@/views/dashboard";
 import { GrowthView } from "@/views/growth";
 import { MistakesView } from "@/views/mistakes";
 import { PersonaView } from "@/views/persona";
-import { PlaceholderView } from "@/views/placeholder";
+import { PrepareView } from "@/views/prepare";
 import { SettingsView } from "@/views/settings";
 
 type Phase = "booting" | "ready" | "failed";
@@ -93,7 +93,11 @@ export default function App() {
         {page === "mistakes" && <MistakesView onNavigate={setPage} />}
         {page === "growth" && <GrowthView onNavigate={setPage} />}
         {page === "persona" && <PersonaView />}
-        {page === "prepare" && <PlaceholderView page={page} />}
+        {page === "prepare" && (
+          <PrepareView
+            onStart={() => toast.info("面试房间还在迁移中，题库已生成并落库")}
+          />
+        )}
       </AppShell>
       <Toaster position="bottom-right" />
     </TooltipProvider>

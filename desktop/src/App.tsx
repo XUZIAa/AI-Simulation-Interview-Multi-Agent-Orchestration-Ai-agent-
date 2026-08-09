@@ -23,7 +23,7 @@ import { DashboardView } from "@/views/dashboard";
 import { GrowthView } from "@/views/growth";
 import { MistakesView } from "@/views/mistakes";
 import { PersonaView } from "@/views/persona";
-import { PrepareView } from "@/views/prepare";
+import { type PreparedBank, PrepareView } from "@/views/prepare";
 import { ReviewView } from "@/views/review";
 import { RoomView } from "@/views/room";
 import { SettingsView } from "@/views/settings";
@@ -40,6 +40,8 @@ export default function App() {
   const [review, setReview] = useState<{ sessionId: number; generate: boolean } | null>(null);
   const [session, setSession] = useState<InterviewState | null>(null);
   const booted = useRef(false);
+  // 准备页会随导航卸载，题库缓存放这里才能跨页面存活
+  const bank = useRef<PreparedBank | null>(null);
 
   const openReview = (sessionId: number, generate = false) => {
     setReview({ sessionId, generate });
@@ -112,6 +114,7 @@ export default function App() {
         {page === "persona" && <PersonaView />}
         {page === "prepare" && (
           <PrepareView
+            bank={bank}
             onStart={(state) => {
               setSession(state);
               setPage("room");
@@ -123,6 +126,8 @@ export default function App() {
             state={session}
             onFinished={(sessionId, reviewable) => {
               setSession(null);
+              // 题库已消耗，下一场必须重新出题，否则会拿到完全相同的题目
+              bank.current = null;
               if (reviewable) {
                 openReview(sessionId, true);
               } else {

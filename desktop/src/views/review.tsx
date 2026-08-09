@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ClipboardList,
+  FileDown,
   FileWarning,
   Gauge,
   Loader2,
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type ReviewReport, type Schemas, type TurnRecord, api, onEvent } from "@/lib/backend";
 import { ANNOTATION_KIND, GAP_SEVERITY, SCORE_DIMENSION, labelOf } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -200,7 +202,15 @@ export function ReviewView({ sessionId, autoGenerate, onBack }: Props) {
       actions={
         <>
           {backButton}
-          <Button onClick={() => window.print()}>导出</Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={() => window.print()}>
+                <FileDown />
+                导出 PDF
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>在弹出的对话框里把目标选成「另存为 PDF」</TooltipContent>
+          </Tooltip>
         </>
       }
     >

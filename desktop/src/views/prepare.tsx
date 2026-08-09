@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { ClipboardPaste, Loader2, Play, Sparkles, Target, Upload } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageContainer } from "@/components/page-container";
@@ -71,11 +71,19 @@ interface TaskState {
 
 const IDLE: TaskState = { running: false, stage: "", percent: 0, error: "" };
 
-interface Props {
-  onStart: (state: InterviewState) => void;
+/** 已生成待用的题库 */
+export interface PreparedBank {
+  fingerprint: string;
+  state: InterviewState;
 }
 
-export function PrepareView({ onStart }: Props) {
+interface Props {
+  onStart: (state: InterviewState) => void;
+  /** 出题要一分钟，缓存必须由不会卸载的上层持有，否则进房间再返回就白等一遍 */
+  bank: React.RefObject<PreparedBank | null>;
+}
+
+export function PrepareView({ onStart, bank }: Props) {
   const [resumes, setResumes] = useState<StoredResume[]>([]);
   const [jobs, setJobs] = useState<StoredJob[]>([]);
   const [personas, setPersonas] = useState<PersonaContract[]>([]);
@@ -97,9 +105,6 @@ export function PrepareView({ onStart }: Props) {
   const [jobTask, setJobTask] = useState(IDLE);
   const [gapTask, setGapTask] = useState(IDLE);
   const [buildTask, setBuildTask] = useState(IDLE);
-
-  // 已生成待用的题库。出题要几十秒，进房间失败后不该让人再等一遍
-  const built = useRef<{ fingerprint: string; state: InterviewState } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -174,7 +179,7 @@ export function PrepareView({ onStart }: Props) {
       await load();
       setResumeId(stored.id);
       setGap(null);
-      built.current = null;
+      bank.current = null;
     }
   };
 
@@ -222,7 +227,7 @@ export function PrepareView({ onStart }: Props) {
     await load();
     setJobId(stored.id);
     setGap(null);
-    built.current = null;
+    bank.current = null;
   };
 
   const diagnose = async () => {
@@ -242,8 +247,8 @@ export function PrepareView({ onStart }: Props) {
     const fingerprint = [persona.id ?? persona.name, resume.id, job.id, tier, level, minutes, coding].join(
       "|",
     );
-    if (built.current?.fingerprint === fingerprint) {
-      onStart(built.current.state);
+    if (bank.current?.fingerprint === fingerprint) {
+      onStart(bank.current.state);
       return;
     }
     const state = await runTask(setBuildTask, () =>
@@ -259,7 +264,7 @@ export function PrepareView({ onStart }: Props) {
       }),
     );
     if (state) {
-      built.current = { fingerprint, state };
+      bank.current = { fingerprint, state };
       onStart(state);
     }
   };
@@ -278,7 +283,7 @@ export function PrepareView({ onStart }: Props) {
               onValueChange={(v) => {
                 setResumeId(Number(v));
                 setGap(null);
-                built.current = null;
+                bank.current = null;
               }}
             >
               <SelectTrigger className="min-w-[240px] flex-1">
@@ -353,7 +358,7 @@ export function PrepareView({ onStart }: Props) {
               onValueChange={(v) => {
                 setJobId(Number(v));
                 setGap(null);
-                built.current = null;
+                bank.current = null;
               }}
             >
               <SelectTrigger className="min-w-[240px] flex-1">
@@ -489,7 +494,7 @@ export function PrepareView({ onStart }: Props) {
             idle={
               !ready
                 ? "需要先备好简历、岗位与面试官"
-                : built.current
+                : bank.current
                   ? "题库已生成，点开始直接进入"
                   : "点开始会先生成题库，约需一分钟"
             }

@@ -28,7 +28,10 @@ export function AppShell({ page, onNavigate, connected, children }: Props) {
   return (
     <div className="bg-background flex h-full flex-col">
       {!immersive && (
-        <header className="bg-background/85 flex h-14 shrink-0 items-center gap-1 border-b px-4 backdrop-blur">
+        <header
+          data-print="hide"
+          className="bg-background/85 flex h-14 shrink-0 items-center gap-1 border-b px-4 backdrop-blur"
+        >
           <div className="mr-4 flex items-center gap-2.5 pl-1">
             <div className="bg-primary flex size-7 items-center justify-center rounded-lg">
               <Target className="text-primary-foreground size-4" strokeWidth={2.4} />
@@ -93,7 +96,9 @@ export function AppShell({ page, onNavigate, connected, children }: Props) {
         </header>
       )}
 
-      <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+      <main data-print="flow" className="min-h-0 flex-1 overflow-hidden">
+        {children}
+      </main>
     </div>
   );
 }

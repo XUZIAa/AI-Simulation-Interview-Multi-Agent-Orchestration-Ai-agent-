@@ -4,8 +4,6 @@ version = "0.1.0"
 description = "AI 模拟面试系统 - 桌面端"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "pyside6==6.8.1.1",
-    "qasync==0.27.1",
     "sqlalchemy[asyncio]==2.0.36",
     "aiosqlite==0.20.0",
     "websockets==13.1",
@@ -21,11 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-interviewer = "interviewer.main:main"
 interviewer-backend = "interviewer.backend:main"
-
-[project.gui-scripts]
-interviewer-app = "interviewer.main:main"
 
 [dependency-groups]
 dev = [

@@ -1,5 +1,4 @@
 # PyInstaller 配置：把 Python 后端打成独立可执行文件，供 Tauri 以 sidecar 方式分发。
-# 与 Qt 版的 interviewer.spec 并存，两者互不影响。
 from PyInstaller.utils.hooks import collect_submodules
 
 hidden = [
@@ -19,8 +18,8 @@ a = Analysis(
     binaries=[],
     datas=[],
     hiddenimports=hidden,
-    # 后端进程不加载任何界面库
-    excludes=["PySide6", "shiboken6", "qasync", "tkinter", "matplotlib"],
+    # 界面由 Tauri 承担，后端不该拉进任何 GUI 库
+    excludes=["tkinter", "matplotlib"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

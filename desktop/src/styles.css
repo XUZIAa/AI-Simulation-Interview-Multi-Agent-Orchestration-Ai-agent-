@@ -161,3 +161,81 @@
     background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
   }
 }
+
+/* 导出走 WebView2 的打印引擎。屏幕布局是「外壳固定 + 内容区独立滚动」，
+   不解除这套约束的话打印只会输出可视的那一屏，复盘报告恰好是最长的页面。 */
+@media print {
+  /* 报告是纸质产物，深色主题下直接打印会得到黑底，强制走文档配色 */
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.21 0.02 265);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.21 0.02 265);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.21 0.02 265);
+    --primary: oklch(0.53 0.19 275);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.968 0.004 265);
+    --secondary-foreground: oklch(0.31 0.02 265);
+    --muted: oklch(0.968 0.004 265);
+    --muted-foreground: oklch(0.45 0.015 265);
+    --accent: oklch(0.955 0.012 275);
+    --accent-foreground: oklch(0.35 0.06 275);
+    --destructive: oklch(0.58 0.21 20);
+    --success: oklch(0.55 0.15 158);
+    --warning: oklch(0.62 0.16 70);
+    --border: oklch(0.88 0.005 265);
+    --input: oklch(0.88 0.005 265);
+    --candidate: oklch(0.55 0.15 158);
+    --interviewer: oklch(0.53 0.19 275);
+  }
+
+  @page {
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  [data-print="hide"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* 撤掉整条 flex + overflow 链，让内容按文档流铺开分页 */
+  [data-print="flow"] {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    flex: none !important;
+  }
+
+  /* 屏幕上用 truncate 防溢出，纸上必须完整 */
+  .truncate {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+
+  [data-slot="card"] {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -8,6 +8,7 @@ from pydantic import AliasChoices, Field
 
 from ..core.providers_catalog import model_traits
 from ..core.types import MAX_DEPTH, CompanyTier, JobLevel, QuestionSource
+from ..data.corpus import search_real_questions
 from ..domain.company import company_profile, level_expectation
 from ..domain.question_bank import BankQuestion, QuestionBank
 from ..domain.resume import GapReport, JobDescription, ResumeProfile
@@ -152,12 +153,24 @@ class BankBuilder(Agent):
             questions.append(built)
             next_id += 1
 
+        # 真题以追加方式进来，不参与上面的模型生成，也不改它的配额。
+        # 检索不到就一条不加，题库与没有语料时完全一致。
+        real = _append_real_questions(
+            questions,
+            next_id=next_id,
+            seen=seen,
+            resume=resume,
+            job=job,
+        )
+
         if gap:
             _apply_must_ask(questions, gap)
         bank = QuestionBank(questions=questions)
         logger.info(
-            "题库构建完成：%d 道，领域 %s，必问 %d",
+            "题库构建完成：%d 道（模型 %d + 真题 %d），领域 %s，必问 %d",
             len(questions),
+            len(questions) - real,
+            real,
             "/".join(bank.domains()[:8]),
             len(bank.pending_must_ask(set())),
         )
@@ -170,6 +183,72 @@ class BankBuilder(Agent):
             temperature=0.55,
             max_tokens=max_tokens,
         )
+
+
+REAL_QUESTION_QUOTA = 10
+
+
+def _real_depth(sources: int) -> int:
+    """频次越高越是必考的概念层，低频的多半是现场深挖出来的追问。"""
+    if sources >= 40:
+        return 1
+    if sources >= 10:
+        return 2
+    return 3
+
+
+def _append_real_questions(
+    questions: list[BankQuestion],
+    *,
+    next_id: int,
+    seen: set[str],
+    resume: ResumeProfile,
+    job: JobDescription,
+) -> int:
+    """把检索到的真实高频题追加进题库，返回实际加入的条数。
+
+    只补 fundamental 一路，不动模型出的项目题与 JD 题：
+    项目题贴合简历，是这套东西的立身之本，不能被通用八股挤掉。
+    """
+    fragments = [
+        *job.must_have,
+        *job.nice_to_have,
+        *resume.skills,
+        job.title,
+    ]
+    try:
+        hits = search_real_questions(fragments, title=job.title)
+    except Exception:
+        logger.warning("真题检索失败，题库按模型结果使用", exc_info=True)
+        return 0
+    if not hits:
+        return 0
+
+    added = 0
+    for hit in hits:
+        if added >= REAL_QUESTION_QUOTA:
+            break
+        text = trim(hit.text, 160)
+        if len(text) < 6:
+            continue
+        fingerprint = text[:40].lower()
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        # 语料的分类名当领域用，同类题的 domain 字符串保持一致，导演靠它判断换领域
+        domain = hit.category.split("/")[-1].split("、")[0].strip() or "基础"
+        questions.append(
+            BankQuestion(
+                id=next_id + added,
+                text=text,
+                skill=domain,
+                domain=domain,
+                depth=_real_depth(hit.sources),
+                source=QuestionSource.FUNDAMENTAL,
+            )
+        )
+        added += 1
+    return added
 
 
 def _to_question(item: _BankItemRaw, question_id: int, *, coding_enabled: bool) -> BankQuestion | None:

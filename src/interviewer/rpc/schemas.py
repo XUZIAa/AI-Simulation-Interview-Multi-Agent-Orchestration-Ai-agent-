@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from ..core.types import CompanyTier, JobLevel
+from ..domain.coding import CodingCase
 from ..domain.persona import PersonaContract
 
 
@@ -38,6 +39,24 @@ class HintBody(BaseModel):
 class SubmitCodeBody(BaseModel):
     language: str = Field(min_length=1, max_length=40)
     source: str
+
+
+class ComposeChallengeBody(BaseModel):
+    """出编码题。skill 留空则由模型按岗位自行选考察方向。"""
+
+    skill: str = Field(default="", max_length=60)
+
+
+class RunCodeBody(BaseModel):
+    language: str = Field(min_length=1, max_length=40)
+    source: str = Field(max_length=60_000)
+    stdin: str = Field(default="", max_length=20_000)
+
+
+class JudgeCodeBody(BaseModel):
+    language: str = Field(min_length=1, max_length=40)
+    source: str = Field(max_length=60_000)
+    cases: list[CodingCase] = Field(default_factory=list, max_length=12)
 
 
 class BuildSessionBody(TaskBody):

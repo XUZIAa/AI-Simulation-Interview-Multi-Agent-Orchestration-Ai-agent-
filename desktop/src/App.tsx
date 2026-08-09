@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { TitleBar } from "@/components/title-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Toaster } from "@/components/ui/sonner";
@@ -19,6 +20,7 @@ import {
   openEventChannel,
 } from "@/lib/backend";
 import type { PageId } from "@/lib/pages";
+import { AboutView } from "@/views/about";
 import { DashboardView } from "@/views/dashboard";
 import { GrowthView } from "@/views/growth";
 import { MistakesView } from "@/views/mistakes";
@@ -92,7 +94,13 @@ export default function App() {
   if (phase !== "ready") {
     return (
       <>
-        <BootScreen phase={phase} error={error} onRetry={boot} />
+        {/* 启动画面在外壳之外，没有标题栏就会既拖不动也关不掉 */}
+        <div className="bg-background flex h-full flex-col">
+          <TitleBar />
+          <div className="min-h-0 flex-1">
+            <BootScreen phase={phase} error={error} onRetry={boot} />
+          </div>
+        </div>
         <Toaster position="bottom-right" />
       </>
     );
@@ -108,7 +116,8 @@ export default function App() {
             onOpenReview={openReview}
           />
         )}
-        {page === "settings" && <SettingsView />}
+        {page === "settings" && <SettingsView onOpenAbout={() => setPage("about")} />}
+        {page === "about" && <AboutView onBack={() => setPage("settings")} />}
         {page === "mistakes" && <MistakesView onNavigate={setPage} />}
         {page === "growth" && <GrowthView onNavigate={setPage} />}
         {page === "persona" && <PersonaView />}

@@ -1,15 +1,18 @@
 import {
   AudioLines,
   Check,
+  ChevronRight,
   ExternalLink,
   Eye,
   EyeOff,
+  Info,
   Loader2,
   Save,
   ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type AppSettings, type Schemas, api } from "@/lib/backend";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +42,25 @@ type ProbeOutcome = Schemas["ProbeOutcome"];
 
 type ProbeState = Record<string, { pending: boolean; result?: ProbeOutcome }>;
 
-export function SettingsView() {
+/** WebView 里 <a target="_blank"> 不会唤起系统浏览器，必须交给 opener */
+async function openConsole(url: string): Promise<void> {
+  try {
+    await openUrl(url);
+  } catch {
+    await navigator.clipboard.writeText(url).catch(() => undefined);
+    toast.error("打不开浏览器，链接已复制到剪贴板");
+  }
+}
+
+const TAB_ITEMS = [
+  { value: "keys", label: "API Key" },
+  { value: "models", label: "模型" },
+  { value: "realtime", label: "实时语音" },
+  { value: "audio", label: "音频" },
+  { value: "features", label: "功能" },
+];
+
+export function SettingsView({ onOpenAbout }: { onOpenAbout: () => void }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [devices, setDevices] = useState<AudioDevices | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -155,7 +177,23 @@ export function SettingsView() {
         </Button>
       }
     >
-      <div className="space-y-5">
+      <Tabs defaultValue="keys">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-6 rounded-none border-b p-0"
+        >
+          {TAB_ITEMS.map((t) => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              className="flex-none px-0 pb-2.5 text-[13.5px] data-[state=active]:font-semibold"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="keys" className="mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -182,15 +220,14 @@ export function SettingsView() {
                         </span>
                       )}
                       {provider?.console_url && (
-                        <a
-                          href={provider.console_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
+                        <button
+                          type="button"
+                          onClick={() => void openConsole(provider.console_url)}
+                          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
                         >
                           获取
                           <ExternalLink className="size-3" />
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -235,6 +272,9 @@ export function SettingsView() {
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="models" className="mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -323,6 +363,9 @@ export function SettingsView() {
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="realtime" className="mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -434,6 +477,9 @@ export function SettingsView() {
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="audio" className="mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">音频</CardTitle>
@@ -534,19 +580,14 @@ export function SettingsView() {
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="features" className="mt-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">功能</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ToggleRow
-              label="摄像头自视图"
-              hint="画面只在本机渲染，不经网络"
-              checked={settings.features.camera_enabled}
-              onChange={(v) =>
-                setSettings({ ...settings, features: { ...settings.features, camera_enabled: v } })
-              }
-            />
             <ToggleRow
               label="实时提词"
               hint="卡壳时给关键词与展开方向"
@@ -576,7 +617,23 @@ export function SettingsView() {
             />
           </CardContent>
         </Card>
-      </div>
+        </TabsContent>
+      </Tabs>
+
+      <button
+        type="button"
+        onClick={onOpenAbout}
+        className="hover:bg-accent/50 mt-5 flex w-full items-center gap-3 rounded-xl border px-5 py-4 text-left transition-colors duration-150 ease-out"
+      >
+        <Info className="text-muted-foreground size-4 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13.5px] font-medium">关于这个项目</span>
+          <span className="text-muted-foreground mt-0.5 block text-xs">
+            开源地址、联系方式，以及我做这个东西的原因
+          </span>
+        </span>
+        <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+      </button>
     </PageContainer>
   );
 }

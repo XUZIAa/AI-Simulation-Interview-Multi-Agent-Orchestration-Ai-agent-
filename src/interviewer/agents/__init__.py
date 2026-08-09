@@ -1,3 +1,4 @@
+from .coding_agent import CodingComposer
 from .director import Director, DirectorDecision
 from .guard import Guard, GuardVerdict, repair_directive
 from .live_agents import CodeExaminer, CodeProbe, Copilot, CopilotHintPayload, StarAnalyst, StarVerdict
@@ -9,6 +10,7 @@ __all__ = [
     "BankBuilder",
     "CodeExaminer",
     "CodeProbe",
+    "CodingComposer",
     "Copilot",
     "CopilotHintPayload",
     "Director",

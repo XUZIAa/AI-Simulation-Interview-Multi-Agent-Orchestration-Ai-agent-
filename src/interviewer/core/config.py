@@ -84,7 +84,6 @@ class OrchestrationSettings(BaseModel):
 
 
 class FeatureSettings(BaseModel):
-    camera_enabled: bool = True
     copilot_enabled: bool = True
     coding_round_enabled: bool = False
     save_audio: bool = True

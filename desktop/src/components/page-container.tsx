@@ -14,11 +14,11 @@ interface Props {
 export function PageContainer({ title, description, actions, children, wide }: Props) {
   return (
     <div data-print="flow" className="flex h-full flex-col">
-      <div className="flex shrink-0 items-start justify-between gap-4 px-8 pt-7 pb-5">
+      <div className="flex shrink-0 items-start justify-between gap-4 px-7 pt-6 pb-5">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-[-0.02em]">{title}</h1>
           {description && (
-            <p className="text-muted-foreground mt-1 truncate text-sm">{description}</p>
+            <p className="text-muted-foreground mt-1 truncate text-[13px]">{description}</p>
           )}
         </div>
         {actions && (
@@ -29,7 +29,7 @@ export function PageContainer({ title, description, actions, children, wide }: P
       </div>
       <div data-print="flow" className="min-h-0 flex-1 overflow-y-auto">
         {/* 上限放宽到 1600px：这类仪表盘在宽屏上留白过多会显得空 */}
-        <div className={cn("mx-auto px-8 pb-10", wide ? "max-w-[1600px]" : "max-w-6xl")}>
+        <div className={cn("mx-auto px-7 pb-8", wide ? "max-w-[1600px]" : "max-w-6xl")}>
           {children}
         </div>
       </div>
@@ -49,10 +49,8 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-      <div className="bg-muted flex size-11 items-center justify-center rounded-xl">
-        <Icon className="text-muted-foreground size-5" />
-      </div>
+    <div className="flex h-full flex-col items-center justify-center gap-3 py-14 text-center">
+      <Icon className="text-muted-foreground/50 size-5" />
       <div>
         <p className="text-sm font-medium">{title}</p>
         {hint && <p className="text-muted-foreground mt-1 text-sm">{hint}</p>}

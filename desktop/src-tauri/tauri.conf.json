@@ -12,12 +12,14 @@
   "app": {
     "windows": [
       {
-        "title": "AI 模拟面试",
+        "title": "AI 面试助手",
         "width": 1360,
         "height": 900,
         "minWidth": 1080,
         "minHeight": 720,
-        "center": true
+        "center": true,
+        "decorations": false,
+        "resizable": true
       }
     ],
     "security": {

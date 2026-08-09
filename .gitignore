@@ -45,3 +45,42 @@ desktop/src-tauri/target/
 desktop/src-tauri/gen/
 # sidecar 可执行文件由打包脚本生成，不入库
 desktop/src-tauri/binaries/
+
+# impeccable-ignore-start
+# Skill 本体是开发期工具（148 文件 3 MB 第三方代码），不进产品仓库。
+# 换机器时重新安装即可，不影响项目构建。
+.kiro/skills/
+
+# 上面 Python 段的 config.json 未锚定，会误伤 Impeccable 的共享配置。
+# 设计上下文属于项目资产，必须入库。
+!.impeccable/config.json
+!.impeccable/live/config.json
+
+# 临时产物、运行时状态与每人各异的覆盖项。
+# 不锚定：.impeccable 可能位于仓库根或嵌套工作区下。
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/*.png
+.impeccable/live/server.json
+.impeccable/live/sessions/
+.impeccable/live/previews/
+.impeccable/live/annotations/
+.impeccable/live/cache/
+.impeccable/live/manual-edit-apply-transaction.json
+.impeccable/live/manual-edit-events.jsonl
+.impeccable/live/manual-edit-evidence/
+.impeccable/live/pending-manual-edits.json
+.impeccable/live/deferred-svelte-component-accepts.json
+.impeccable/live/*.png
+# impeccable-ignore-end
+
+# 面经原始语料与派生产物：数据资产，不入库。
+# 清洗脚本随代码开源，任何人可以用自己的语料重新编译。
+爬取的/
+src/interviewer/data/corpus/questions.bin
+# 审计报告会摘录命中样例，不该留在仓库里
+tools/audit-report.txt
+
+# 个人素材
+自己找的新背景图/

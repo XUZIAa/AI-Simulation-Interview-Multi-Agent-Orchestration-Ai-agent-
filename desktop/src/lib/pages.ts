@@ -1,5 +1,6 @@
 import {
   BookMarked,
+  Info,
   LayoutDashboard,
   Settings,
   Sparkles,
@@ -15,6 +16,7 @@ export type PageId =
   | "mistakes"
   | "growth"
   | "settings"
+  | "about"
   | "room"
   | "review";
 
@@ -32,8 +34,19 @@ export const PAGES: Record<PageId, PageMeta> = {
   mistakes: { title: "错题本", icon: BookMarked, inNav: true },
   growth: { title: "成长轨迹", icon: TrendingUp, inNav: true },
   settings: { title: "设置", icon: Settings, inNav: false },
+  about: { title: "关于", icon: Info, inNav: false },
   room: { title: "面试进行中", icon: Sparkles, inNav: false },
   review: { title: "复盘报告", icon: BookMarked, inNav: false },
 };
 
-export const NAV_ORDER: PageId[] = ["dashboard", "prepare", "persona", "mistakes", "growth"];
+/** 侧边栏分组。label 为 null 的组不显示标题，直接铺开 */
+export interface NavGroup {
+  label: string | null;
+  items: PageId[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  { label: null, items: ["dashboard"] },
+  { label: "面试", items: ["prepare", "persona"] },
+  { label: "复盘", items: ["mistakes", "growth"] },
+];

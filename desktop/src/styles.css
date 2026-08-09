@@ -8,8 +8,9 @@
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.995 0 0);
-  --foreground: oklch(0.21 0.02 265);
+  /* 底色压到可辨的冷灰，卡面留纯白：分层靠这道明度差，不靠阴影 */
+  --background: oklch(0.973 0.003 265);
+  --foreground: oklch(0.205 0.02 265);
 
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.02 265);
@@ -23,7 +24,8 @@
   --secondary-foreground: oklch(0.31 0.02 265);
 
   --muted: oklch(0.968 0.004 265);
-  --muted-foreground: oklch(0.53 0.015 265);
+  /* 0.53 在新底色上只有 4.24:1，压到 0.50 换来 4.8:1*/
+  --muted-foreground: oklch(0.5 0.015 265);
 
   --accent: oklch(0.955 0.012 275);
   --accent-foreground: oklch(0.35 0.06 275);
@@ -33,8 +35,9 @@
   --success: oklch(0.62 0.15 158);
   --warning: oklch(0.72 0.16 70);
 
-  --border: oklch(0.925 0.005 265);
-  --input: oklch(0.925 0.005 265);
+  /* 边框要看得见才有商业感，太淡会糊成一片 */
+  --border: oklch(0.923 0.005 265);
+  --input: oklch(0.905 0.006 265);
   --ring: oklch(0.53 0.19 275);
 
   --candidate: oklch(0.62 0.15 158);
@@ -48,7 +51,7 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.012 265);
+  --background: oklch(0.148 0.009 265);
   --foreground: oklch(0.96 0.004 265);
 
   --card: oklch(0.205 0.014 265);
@@ -73,8 +76,8 @@
   --success: oklch(0.7 0.15 158);
   --warning: oklch(0.78 0.15 70);
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.68 0.17 275);
 
   --candidate: oklch(0.7 0.15 158);
@@ -144,6 +147,23 @@
   [contenteditable],
   .selectable {
     user-select: text;
+  }
+
+  /* 选区与光标默认取浏览器蓝，不属于任何设计系统 */
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 20%, transparent);
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    caret-color: var(--primary);
+  }
+
+  /* 数据里的数字必须等宽，否则刷新时列会横跳 */
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   ::-webkit-scrollbar {
@@ -238,4 +258,37 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+/* 向导画布：三团极淡的光晕叠出柔和渐变。数值刻意压低，
+   它是背景而不是主角，盖过卡片就失去意义了。 */
+.wizard-canvas {
+  background:
+    radial-gradient(68% 52% at 10% 6%, oklch(0.88 0.062 305 / 0.5), transparent 72%),
+    radial-gradient(62% 48% at 90% 80%, oklch(0.9 0.058 165 / 0.46), transparent 72%),
+    radial-gradient(54% 58% at 64% 30%, oklch(0.91 0.05 250 / 0.38), transparent 74%);
+}
+
+.dark .wizard-canvas {
+  background:
+    radial-gradient(68% 52% at 10% 6%, oklch(0.5 0.09 305 / 0.22), transparent 72%),
+    radial-gradient(62% 48% at 90% 80%, oklch(0.52 0.08 165 / 0.2), transparent 72%),
+    radial-gradient(54% 58% at 64% 30%, oklch(0.54 0.08 250 / 0.16), transparent 74%);
+}
+
+/* 关于页的方格底纹：灰底压白线。线要细到只在余光里成立，
+   一旦看得清就会跟正文抢注意力。 */
+.grid-paper {
+  background-color: oklch(0.952 0.003 265);
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.85) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.85) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.dark .grid-paper {
+  background-color: oklch(0.168 0.01 265);
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.05) 1px, transparent 1px);
 }

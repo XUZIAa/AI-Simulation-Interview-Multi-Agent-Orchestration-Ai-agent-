@@ -275,6 +275,129 @@
     }
    }
   },
+  "/coding/challenge": {
+   "post": {
+    "tags": [
+     "coding"
+    ],
+    "summary": "Coding Challenge",
+    "operationId": "coding_challenge_coding_challenge_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ComposeChallengeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CodingChallenge"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/coding/run": {
+   "post": {
+    "tags": [
+     "coding"
+    ],
+    "summary": "Coding Run",
+    "operationId": "coding_run_coding_run_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RunCodeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunOutcome"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/coding/judge": {
+   "post": {
+    "tags": [
+     "coding"
+    ],
+    "summary": "Coding Judge",
+    "operationId": "coding_judge_coding_judge_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/JudgeCodeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/JudgeOutcome"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/engine/finish-early": {
    "post": {
     "tags": [
@@ -2066,6 +2189,60 @@
     ],
     "title": "BuildSessionBody"
    },
+   "CaseOutcome": {
+    "properties": {
+     "index": {
+      "type": "integer",
+      "title": "Index"
+     },
+     "passed": {
+      "type": "boolean",
+      "title": "Passed"
+     },
+     "input": {
+      "type": "string",
+      "title": "Input",
+      "default": ""
+     },
+     "expected": {
+      "type": "string",
+      "title": "Expected",
+      "default": ""
+     },
+     "actual": {
+      "type": "string",
+      "title": "Actual",
+      "default": ""
+     },
+     "stderr": {
+      "type": "string",
+      "title": "Stderr",
+      "default": ""
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms",
+      "default": 0
+     },
+     "timed_out": {
+      "type": "boolean",
+      "title": "Timed Out",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "index",
+     "passed",
+     "input",
+     "expected",
+     "actual",
+     "stderr",
+     "duration_ms",
+     "timed_out"
+    ],
+    "title": "CaseOutcome"
+   },
    "Catalog": {
     "properties": {
      "chat": {
@@ -2099,6 +2276,92 @@
     "title": "Catalog",
     "description": "供应商目录。前端据此渲染下拉，不必把这些常量抄一遍。"
    },
+   "CodingCase": {
+    "properties": {
+     "input": {
+      "type": "string",
+      "title": "Input",
+      "default": ""
+     },
+     "expected": {
+      "type": "string",
+      "title": "Expected",
+      "default": ""
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "CodingCase",
+    "description": "一条用例。走标准输入输出，不往用户代码里注入调用，判题只比字符串。",
+    "required": [
+     "input",
+     "expected",
+     "note"
+    ]
+   },
+   "CodingChallenge": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "title": "Title",
+      "default": ""
+     },
+     "statement": {
+      "type": "string",
+      "title": "Statement",
+      "default": ""
+     },
+     "io_format": {
+      "type": "string",
+      "title": "Io Format",
+      "default": ""
+     },
+     "starter": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Starter"
+     },
+     "reference": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Reference"
+     },
+     "cases": {
+      "items": {
+       "$ref": "#/components/schemas/CodingCase"
+      },
+      "type": "array",
+      "title": "Cases"
+     },
+     "hints": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Hints"
+     }
+    },
+    "type": "object",
+    "title": "CodingChallenge",
+    "description": "一道完整编码题。与题库的口述题分开：那边只有题干，这里要能判题。",
+    "required": [
+     "title",
+     "statement",
+     "io_format",
+     "starter",
+     "reference",
+     "cases",
+     "hints"
+    ]
+   },
    "CompanyTier": {
     "type": "string",
     "enum": [
@@ -2113,6 +2376,19 @@
     ],
     "title": "CompanyTier",
     "description": "公司类型。它决定考什么、怎么问、以及分数怎么加权。"
+   },
+   "ComposeChallengeBody": {
+    "properties": {
+     "skill": {
+      "type": "string",
+      "maxLength": 60,
+      "title": "Skill",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "ComposeChallengeBody",
+    "description": "出编码题。skill 留空则由模型按岗位自行选考察方向。"
    },
    "CustomEndpoint": {
     "properties": {
@@ -2252,11 +2528,6 @@
    },
    "FeatureSettings": {
     "properties": {
-     "camera_enabled": {
-      "type": "boolean",
-      "title": "Camera Enabled",
-      "default": true
-     },
      "copilot_enabled": {
       "type": "boolean",
       "title": "Copilot Enabled",
@@ -2276,7 +2547,6 @@
     "type": "object",
     "title": "FeatureSettings",
     "required": [
-     "camera_enabled",
      "copilot_enabled",
      "coding_round_enabled",
      "save_audio"
@@ -2924,6 +3194,63 @@
      "expert"
     ],
     "title": "JobLevel"
+   },
+   "JudgeCodeBody": {
+    "properties": {
+     "language": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Language"
+     },
+     "source": {
+      "type": "string",
+      "maxLength": 60000,
+      "title": "Source"
+     },
+     "cases": {
+      "items": {
+       "$ref": "#/components/schemas/CodingCase"
+      },
+      "type": "array",
+      "maxItems": 12,
+      "title": "Cases"
+     }
+    },
+    "type": "object",
+    "required": [
+     "language",
+     "source"
+    ],
+    "title": "JudgeCodeBody"
+   },
+   "JudgeOutcome": {
+    "properties": {
+     "passed": {
+      "type": "integer",
+      "title": "Passed",
+      "default": 0
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total",
+      "default": 0
+     },
+     "cases": {
+      "items": {
+       "$ref": "#/components/schemas/CaseOutcome"
+      },
+      "type": "array",
+      "title": "Cases"
+     }
+    },
+    "type": "object",
+    "title": "JudgeOutcome",
+    "required": [
+     "passed",
+     "total",
+     "cases"
+    ]
    },
    "MistakeCounts": {
     "properties": {
@@ -3984,6 +4311,78 @@
      "label"
     ],
     "title": "RoleOption"
+   },
+   "RunCodeBody": {
+    "properties": {
+     "language": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Language"
+     },
+     "source": {
+      "type": "string",
+      "maxLength": 60000,
+      "title": "Source"
+     },
+     "stdin": {
+      "type": "string",
+      "maxLength": 20000,
+      "title": "Stdin",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "language",
+     "source"
+    ],
+    "title": "RunCodeBody"
+   },
+   "RunOutcome": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok",
+      "default": false
+     },
+     "stdout": {
+      "type": "string",
+      "title": "Stdout",
+      "default": ""
+     },
+     "stderr": {
+      "type": "string",
+      "title": "Stderr",
+      "default": ""
+     },
+     "exit_code": {
+      "type": "integer",
+      "title": "Exit Code",
+      "default": 0
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms",
+      "default": 0
+     },
+     "timed_out": {
+      "type": "boolean",
+      "title": "Timed Out",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "RunOutcome",
+    "description": "一次自由运行的结果。ok 只代表进程正常退出，不代表答案对。",
+    "required": [
+     "ok",
+     "stdout",
+     "stderr",
+     "exit_code",
+     "duration_ms",
+     "timed_out"
+    ]
    },
    "ScoreDimension": {
     "type": "string",

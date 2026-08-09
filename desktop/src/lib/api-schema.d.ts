@@ -143,6 +143,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/coding/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Coding Challenge */
+        post: operations["coding_challenge_coding_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coding/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Coding Run */
+        post: operations["coding_run_coding_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coding/judge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Coding Judge */
+        post: operations["coding_judge_coding_judge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/engine/finish-early": {
         parameters: {
             query?: never;
@@ -920,6 +971,43 @@ export interface components {
              */
             coding_enabled: boolean;
         };
+        /** CaseOutcome */
+        CaseOutcome: {
+            /** Index */
+            index: number;
+            /** Passed */
+            passed: boolean;
+            /**
+             * Input
+             * @default
+             */
+            input: string;
+            /**
+             * Expected
+             * @default
+             */
+            expected: string;
+            /**
+             * Actual
+             * @default
+             */
+            actual: string;
+            /**
+             * Stderr
+             * @default
+             */
+            stderr: string;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /**
+             * Timed Out
+             * @default false
+             */
+            timed_out: boolean;
+        };
         /**
          * Catalog
          * @description 供应商目录。前端据此渲染下拉，不必把这些常量抄一遍。
@@ -933,11 +1021,76 @@ export interface components {
             roles: components["schemas"]["RoleOption"][];
         };
         /**
+         * CodingCase
+         * @description 一条用例。走标准输入输出，不往用户代码里注入调用，判题只比字符串。
+         */
+        CodingCase: {
+            /**
+             * Input
+             * @default
+             */
+            input: string;
+            /**
+             * Expected
+             * @default
+             */
+            expected: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /**
+         * CodingChallenge
+         * @description 一道完整编码题。与题库的口述题分开：那边只有题干，这里要能判题。
+         */
+        CodingChallenge: {
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Statement
+             * @default
+             */
+            statement: string;
+            /**
+             * Io Format
+             * @default
+             */
+            io_format: string;
+            /** Starter */
+            starter: {
+                [key: string]: string;
+            };
+            /** Reference */
+            reference: {
+                [key: string]: string;
+            };
+            /** Cases */
+            cases: components["schemas"]["CodingCase"][];
+            /** Hints */
+            hints: string[];
+        };
+        /**
          * CompanyTier
          * @description 公司类型。它决定考什么、怎么问、以及分数怎么加权。
          * @enum {string}
          */
         CompanyTier: "big_tech" | "mid_tech" | "startup" | "manufacturing" | "state_owned" | "foreign" | "finance" | "outsource";
+        /**
+         * ComposeChallengeBody
+         * @description 出编码题。skill 留空则由模型按岗位自行选考察方向。
+         */
+        ComposeChallengeBody: {
+            /**
+             * Skill
+             * @default
+             */
+            skill: string;
+        };
         /**
          * CustomEndpoint
          * @description 自定义端点的用户填写值，仅在 provider = custom 时生效。
@@ -1013,11 +1166,6 @@ export interface components {
         };
         /** FeatureSettings */
         FeatureSettings: {
-            /**
-             * Camera Enabled
-             * @default true
-             */
-            camera_enabled: boolean;
             /**
              * Copilot Enabled
              * @default true
@@ -1341,6 +1489,30 @@ export interface components {
          * @enum {string}
          */
         JobLevel: "intern" | "junior" | "mid" | "senior" | "expert";
+        /** JudgeCodeBody */
+        JudgeCodeBody: {
+            /** Language */
+            language: string;
+            /** Source */
+            source: string;
+            /** Cases */
+            cases?: components["schemas"]["CodingCase"][];
+        };
+        /** JudgeOutcome */
+        JudgeOutcome: {
+            /**
+             * Passed
+             * @default 0
+             */
+            passed: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /** Cases */
+            cases: components["schemas"]["CaseOutcome"][];
+        };
         /** MistakeCounts */
         MistakeCounts: {
             /** Pending */
@@ -1906,6 +2078,54 @@ export interface components {
             key: string;
             /** Label */
             label: string;
+        };
+        /** RunCodeBody */
+        RunCodeBody: {
+            /** Language */
+            language: string;
+            /** Source */
+            source: string;
+            /**
+             * Stdin
+             * @default
+             */
+            stdin: string;
+        };
+        /**
+         * RunOutcome
+         * @description 一次自由运行的结果。ok 只代表进程正常退出，不代表答案对。
+         */
+        RunOutcome: {
+            /**
+             * Ok
+             * @default false
+             */
+            ok: boolean;
+            /**
+             * Stdout
+             * @default
+             */
+            stdout: string;
+            /**
+             * Stderr
+             * @default
+             */
+            stderr: string;
+            /**
+             * Exit Code
+             * @default 0
+             */
+            exit_code: number;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /**
+             * Timed Out
+             * @default false
+             */
+            timed_out: boolean;
         };
         /**
          * ScoreDimension
@@ -2507,6 +2727,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coding_challenge_coding_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComposeChallengeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodingChallenge"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coding_run_coding_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunCodeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOutcome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coding_judge_coding_judge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JudgeCodeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JudgeOutcome"];
                 };
             };
             /** @description Validation Error */

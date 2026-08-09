@@ -16,6 +16,10 @@ export type StoredJob = Schemas["StoredJob"];
 export type StoredGap = Schemas["StoredGap"];
 export type StoredMistake = Schemas["StoredMistake"];
 export type TrendPoint = Schemas["TrendPoint"];
+export type CodingChallenge = Schemas["CodingChallenge"];
+export type CodingCase = Schemas["CodingCase"];
+export type RunOutcome = Schemas["RunOutcome"];
+export type JudgeOutcome = Schemas["JudgeOutcome"];
 export type TurnRecord = Schemas["TurnRecord"];
 export type InterruptedSession = Schemas["InterruptedSession"];
 

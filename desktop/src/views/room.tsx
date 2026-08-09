@@ -1,45 +1,26 @@
-import CodeMirror from "@uiw/react-codemirror";
-import { java } from "@codemirror/lang-java";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
 import {
   Code2,
   Lightbulb,
   Mic,
   MicOff,
   PhoneOff,
-  Send,
   Video,
   VideoOff,
+  X,
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { type MeterHandle, type OrbHandle, LevelMeter, VoiceOrb } from "@/components/voice-orb";
+import { CodingPanel } from "@/components/coding-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { type MeterHandle, type OrbHandle, LevelMeter, VoiceOrb } from "@/components/voice-orb";
 import { type InterviewState, api, onEvent } from "@/lib/backend";
 import type { StarProgress } from "@/lib/event-types";
 import { INTERVIEW_PHASE, TURN_INTENT, labelOf } from "@/lib/labels";
 import { cn } from "@/lib/utils";
-
-const LANGUAGES = ["python", "javascript", "java"] as const;
-type Language = (typeof LANGUAGES)[number];
-
-const LANG_EXT = {
-  python: python,
-  javascript: javascript,
-  java: java,
-} as const;
 
 const STAR_ELEMENTS: { key: string; label: string }[] = [
   { key: "situation", label: "情境" },
@@ -69,8 +50,7 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
-  const [language, setLanguage] = useState<Language>("python");
-  const [source, setSource] = useState("");
+  const [promptOpen, setPromptOpen] = useState(true);
   const [lines, setLines] = useState<Line[]>([]);
   const [hint, setHint] = useState<{ keywords: string[]; outline: string[]; caution: string } | null>(
     null,
@@ -161,9 +141,10 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
       onEvent("director_decided", (d) =>
         setDirector(`${labelOf(TURN_INTENT, d.intent)}${d.target_skill ? ` · ${d.target_skill}` : ""}`),
       ),
-      onEvent("copilot_hint", (d) =>
-        setHint({ keywords: d.keywords, outline: d.outline, caution: d.caution }),
-      ),
+      onEvent("copilot_hint", (d) => {
+        setHint({ keywords: d.keywords, outline: d.outline, caution: d.caution });
+        setPromptOpen(true);
+      }),
       onEvent("star_progress", (d) =>
         setStar({ present: d.present, behavioral: d.is_behavioral }),
       ),
@@ -214,6 +195,7 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
   };
 
   const requestHint = async () => {
+    setPromptOpen(true);
     setHintCooling(true);
     setTimeout(() => setHintCooling(false), 3000);
     await api.post("/engine/hint", { auto: false }).catch(() => undefined);
@@ -223,7 +205,7 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
     await api.post("/engine/interrupt").catch(() => undefined);
   };
 
-  const submitCode = async () => {
+  const submitCode = async (language: string, source: string) => {
     if (!source.trim()) {
       toast.error("先写点代码再提交");
       return;
@@ -245,186 +227,165 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
   const presentSet = new Set<string>(star.present);
 
   const link = !connected
-    ? { text: "连接断开", tone: "text-destructive" }
+    ? { text: "连接断开", tone: "text-red-400" }
     : hearing
-      ? { text: "正在听你说", tone: "text-candidate" }
+      ? { text: "正在听你说", tone: "text-emerald-400" }
       : talking
-        ? { text: "面试官在说", tone: "text-interviewer" }
-        : { text: "已接通", tone: "text-success" };
+        ? { text: "面试官在说", tone: "text-indigo-300" }
+        : { text: "已接通", tone: "text-neutral-400" };
 
   return (
-    <div className="flex h-full flex-col gap-3 p-4">
-      <Card className="gap-0 py-3">
-        <CardContent className="flex items-center gap-3 px-4">
-          <Badge variant="secondary">{labelOf(INTERVIEW_PHASE, phase)}</Badge>
-          <span className={cn("flex items-center gap-1.5 text-xs font-medium", link.tone)}>
-            <span className="size-1.5 rounded-full bg-current" />
-            {link.text}
-          </span>
-          {director && <span className="text-muted-foreground truncate text-xs">{director}</span>}
-          <div className="flex-1" />
-          <span className="font-mono text-xl font-semibold tabular-nums">{mmss(elapsed)}</span>
-          <span className="text-muted-foreground text-xs">剩余 {mmss(remaining)}</span>
-        </CardContent>
-      </Card>
-
-      <div className="flex min-h-0 flex-1 gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="grid shrink-0 grid-cols-2 gap-3">
-            <Card
+    <div className="flex h-full flex-col bg-neutral-800 text-neutral-100">
+      <div className="flex min-h-0 flex-1">
+        {/* 通话区。开代码沙盒后让位，语音球缩到角落 */}
+        <div className={cn("relative min-h-0", codeOpen ? "w-[300px] shrink-0" : "min-w-0 flex-1")}>
+          {/* 字幕悬浮在顶部，半透明压在场景上 */}
+          <div
+            className={cn(
+              "absolute inset-x-0 top-0 z-10 mx-auto",
+              codeOpen ? "px-3 pt-3" : "max-w-2xl px-4 pt-4",
+            )}
+          >
+            <div
+              ref={scroller}
               className={cn(
-                "items-center justify-center gap-2 border-2 py-6 transition-colors",
-                talking ? "border-interviewer" : "border-transparent",
+                "selectable overflow-y-auto rounded-xl bg-black/55 px-4 py-3 backdrop-blur-md",
+                codeOpen ? "max-h-[30vh]" : "max-h-[26vh]",
               )}
             >
-              <VoiceOrb handleRef={orb} size={148} />
-              <p className="text-sm font-semibold">{state.persona.name}</p>
-              <p className="text-muted-foreground text-xs">{state.persona.job_title || "面试官"}</p>
-            </Card>
-
-            <Card
-              className={cn(
-                "relative gap-0 overflow-hidden border-2 py-0 transition-colors",
-                hearing ? "border-candidate" : "border-transparent",
-              )}
-            >
-              <video
-                ref={video}
-                muted
-                playsInline
-                className={cn("size-full object-cover", cameraOn ? "block" : "hidden")}
-              />
-              {!cameraOn && (
-                <div className="text-muted-foreground flex size-full min-h-[180px] flex-col items-center justify-center gap-2">
-                  <VideoOff className="size-6" />
-                  <span className="text-xs">摄像头已关闭</span>
-                </div>
-              )}
-              <div className="absolute inset-x-3 bottom-2">
-                <LevelMeter handleRef={meter} />
-              </div>
-              <span className="bg-background/70 absolute top-2 left-3 rounded px-1.5 py-0.5 text-xs backdrop-blur">
-                我
-              </span>
-            </Card>
-          </div>
-
-          <Card className="min-h-0 flex-1 gap-0 py-3">
-            <CardContent className="flex h-full min-h-0 flex-col px-4">
-              <p className="text-muted-foreground mb-2 shrink-0 text-xs">实时字幕</p>
-              <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {lines.length === 0 ? (
-                  <p className="text-muted-foreground py-8 text-center text-sm">
-                    对话开始后字幕会出现在这里
-                  </p>
-                ) : (
-                  lines.map((line) => (
-                    <div
+              {lines.length === 0 ? (
+                <p className="text-[12.5px] text-neutral-400">对话开始后字幕会出现在这里</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {lines.slice(-14).map((line) => (
+                    <p
                       key={line.id}
                       className={cn(
-                        "selectable rounded-lg px-3 py-2 text-sm",
-                        line.speaker === "candidate"
-                          ? "bg-candidate/10 ml-8"
-                          : "bg-interviewer/10 mr-8",
-                        line.partial && "opacity-60",
+                        "text-[13px] leading-relaxed",
+                        line.speaker === "candidate" ? "text-neutral-400" : "text-neutral-100",
+                        line.partial && "opacity-70",
                       )}
                     >
-                      <span className="text-muted-foreground mr-1.5 text-xs">
+                      <span className="mr-1.5 text-[11px] text-neutral-500">
                         {line.speaker === "candidate" ? "我" : state.persona.name}
                       </span>
                       {line.text}
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {codeOpen && (
-            <Card className="shrink-0 gap-2 py-3">
-              <CardContent className="space-y-2 px-4">
-                <div className="flex items-center gap-2">
-                  <p className="flex-1 text-sm font-medium">代码沙盒</p>
-                  <Select value={language} onValueChange={(v) => setLanguage(v as Language)}>
-                    <SelectTrigger className="h-8 w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((l) => (
-                        <SelectItem key={l} value={l}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={() => void submitCode()}>
-                    <Send />
-                    提交
-                  </Button>
-                </div>
-                <div className="overflow-hidden rounded-lg border">
-                  <CodeMirror
-                    value={source}
-                    height="200px"
-                    extensions={[LANG_EXT[language]()]}
-                    onChange={setSource}
-                    theme={document.documentElement.classList.contains("dark") ? "dark" : "light"}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div className="hidden w-[300px] shrink-0 flex-col gap-3 lg:flex">
-          <Card className="gap-2 py-4">
-            <CardContent className="space-y-2 px-4">
-              <p className="flex items-center gap-1.5 text-sm font-medium">
-                <Lightbulb className="text-warning size-4" />
-                提词器
-              </p>
-              {!hint ? (
-                <p className="text-muted-foreground text-xs">
-                  卡壳时点下方「求助提词」，会给出关键词与展开方向
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {hint.keywords.map((k, i) => (
-                      <Badge key={`${k}-${i}`} variant="secondary">
-                        {k}
-                      </Badge>
-                    ))}
-                  </div>
-                  <ul className="text-muted-foreground space-y-1 text-xs">
-                    {hint.outline.map((o, i) => (
-                      <li key={`${o}-${i}`} className="selectable">
-                        · {o}
-                      </li>
-                    ))}
-                  </ul>
-                  {hint.caution && <p className="text-warning text-xs">注意：{hint.caution}</p>}
+                    </p>
+                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {star.behavioral && (
-            <Card className="gap-2 py-4">
-              <CardContent className="space-y-2 px-4">
-                <p className="text-sm font-medium">STAR 完整度</p>
-                <p className="text-muted-foreground text-xs">
-                  行为题回答需要逐项点亮，缺环节面试官会追问
+          {/* 语音球居中 */}
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <VoiceOrb handleRef={orb} size={codeOpen ? 96 : 176} />
+              <div className="text-center">
+                <p className="text-[13.5px] font-medium">{state.persona.name}</p>
+                <p className="mt-0.5 text-[11.5px] text-neutral-400">
+                  {state.persona.job_title || "面试官"}
                 </p>
-                <div className="flex gap-1.5">
+              </div>
+            </div>
+          </div>
+
+          {/* 自己的画面缩在右下 */}
+          <div
+            className={cn(
+              "absolute overflow-hidden rounded-xl bg-black ring-1 transition-colors",
+              hearing ? "ring-emerald-500/60" : "ring-white/10",
+              codeOpen ? "right-3 bottom-3 h-[92px] w-[124px]" : "right-5 bottom-5 h-[168px] w-[224px]",
+            )}
+          >
+            <video
+              ref={video}
+              muted
+              playsInline
+              className={cn("size-full object-cover", cameraOn ? "block" : "hidden")}
+            />
+            {!cameraOn && (
+              <div className="flex size-full flex-col items-center justify-center gap-1.5 text-neutral-500">
+                <VideoOff className="size-5" />
+                <span className="text-[11px]">摄像头已关</span>
+              </div>
+            )}
+            <div className="absolute inset-x-2.5 bottom-2 flex items-center gap-2">
+              <span className="text-[11px] text-neutral-300">我</span>
+              <div className="min-w-0 flex-1">
+                <LevelMeter handleRef={meter} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {codeOpen && (
+          <div className="min-w-0 flex-1">
+            <CodingPanel onSubmit={(l, s) => void submitCode(l, s)} onClose={() => setCodeOpen(false)} />
+          </div>
+        )}
+
+        {/* 提词器：浮层，可随时关掉 */}
+        {promptOpen && (
+          <aside className="w-[268px] shrink-0 overflow-y-auto border-l border-white/10 bg-neutral-900 p-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="size-4 text-amber-400" />
+              <span className="flex-1 text-[13px] font-medium">提词器</span>
+              <button
+                type="button"
+                onClick={() => setPromptOpen(false)}
+                aria-label="关闭提词器"
+                className="rounded p-1 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+
+            {!hint ? (
+              <p className="mt-3 text-[12px] leading-relaxed text-neutral-400">
+                卡壳时点下方「求助提词」，这里会给出关键词和展开方向
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {hint.keywords.map((k, i) => (
+                    <Badge
+                      key={`${k}-${i}`}
+                      variant="secondary"
+                      className="bg-white/10 text-[11px] text-neutral-100"
+                    >
+                      {k}
+                    </Badge>
+                  ))}
+                </div>
+                <ul className="space-y-1.5">
+                  {hint.outline.map((o, i) => (
+                    <li key={`${o}-${i}`} className="selectable text-[12px] text-neutral-300">
+                      · {o}
+                    </li>
+                  ))}
+                </ul>
+                {hint.caution && (
+                  <p className="selectable text-[12px] text-amber-400">注意：{hint.caution}</p>
+                )}
+              </div>
+            )}
+
+            {star.behavioral && (
+              <div className="mt-5 border-t border-white/10 pt-4">
+                <p className="text-[12.5px] font-medium">STAR 完整度</p>
+                <p className="mt-1 text-[11.5px] text-neutral-400">缺环节面试官会继续追问</p>
+                <div className="mt-2 flex gap-1.5">
                   {STAR_ELEMENTS.map((el) => {
                     const got = presentSet.has(el.key);
                     return (
                       <span
                         key={el.key}
                         className={cn(
-                          "flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-colors",
-                          got ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
+                          "flex-1 rounded-md py-1.5 text-center text-[11px] font-semibold transition-colors",
+                          got
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-white/5 text-neutral-500",
                         )}
                       >
                         {el.label}
@@ -432,45 +393,102 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
 
-      <Card className="shrink-0 gap-0 py-3">
-        <CardContent className="flex flex-wrap items-center gap-2 px-4">
-          <Button variant={muted ? "secondary" : "outline"} onClick={() => void toggleMute()}>
-            {muted ? <MicOff /> : <Mic />}
-            {muted ? "已静音" : "静音"}
-          </Button>
-          <Button variant="outline" onClick={() => void toggleCamera()}>
-            {cameraOn ? <Video /> : <VideoOff />}
-            {cameraOn ? "关闭摄像头" : "开启摄像头"}
-          </Button>
-          <Button
-            variant={codeOpen ? "secondary" : "outline"}
-            onClick={() => setCodeOpen((v) => !v)}
-          >
-            <Code2 />
-            代码沙盒
-          </Button>
-          <div className="flex-1" />
-          <Button variant="outline" onClick={() => void interrupt()}>
-            <Zap />
-            打断面试官
-          </Button>
-          <Button onClick={() => void requestHint()} disabled={hintCooling}>
-            <Lightbulb />
-            求助提词
-          </Button>
-          <Button variant="destructive" onClick={() => void end()}>
-            <PhoneOff />
-            {confirmEnd ? "再点一次确认结束" : "结束面试"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* 底部控制栏 */}
+      <footer className="flex h-14 shrink-0 items-center gap-3 border-t border-white/10 bg-neutral-900 px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Badge variant="secondary" className="bg-white/10 text-[11px] text-neutral-200">
+            {labelOf(INTERVIEW_PHASE, phase)}
+          </Badge>
+          <span className={cn("flex items-center gap-1.5 text-[11.5px]", link.tone)}>
+            <span className="size-1.5 rounded-full bg-current" />
+            {link.text}
+          </span>
+          <span data-numeric className="text-[13px] font-medium text-neutral-200">
+            {mmss(elapsed)}
+            <span className="ml-1 text-[11.5px] text-neutral-500">/ {mmss(elapsed + remaining)}</span>
+          </span>
+          {director && !codeOpen && (
+            <span className="truncate text-[11.5px] text-neutral-500">{director}</span>
+          )}
+        </div>
+
+        <div className="flex-1" />
+
+        <IconAction label={muted ? "取消静音" : "静音"} onClick={() => void toggleMute()} on={muted}>
+          {muted ? <MicOff /> : <Mic />}
+        </IconAction>
+        <IconAction
+          label={cameraOn ? "关闭摄像头" : "开启摄像头"}
+          onClick={() => void toggleCamera()}
+          on={cameraOn}
+        >
+          {cameraOn ? <Video /> : <VideoOff />}
+        </IconAction>
+        <IconAction label="代码沙盒" onClick={() => setCodeOpen((v) => !v)} on={codeOpen}>
+          <Code2 />
+        </IconAction>
+        <IconAction label="打断面试官" onClick={() => void interrupt()}>
+          <Zap />
+        </IconAction>
+        <IconAction
+          label={promptOpen ? "关闭提词器" : "打开提词器"}
+          onClick={() => setPromptOpen((v) => !v)}
+          on={promptOpen}
+        >
+          <Lightbulb />
+        </IconAction>
+
+        <Button
+          size="sm"
+          className="ml-1 h-8 bg-white/10 text-neutral-100 hover:bg-white/20"
+          onClick={() => void requestHint()}
+          disabled={hintCooling}
+        >
+          求助提词
+        </Button>
+        <Button size="sm" variant="destructive" className="h-8" onClick={() => void end()}>
+          <PhoneOff />
+          {confirmEnd ? "再点一次确认" : "结束面试"}
+        </Button>
+      </footer>
     </div>
+  );
+}
+
+function IconAction({
+  label,
+  onClick,
+  on,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  on?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={label}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-full transition-colors [&>svg]:size-4",
+            on ? "bg-white/20 text-white" : "bg-white/8 text-neutral-300 hover:bg-white/15",
+          )}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 

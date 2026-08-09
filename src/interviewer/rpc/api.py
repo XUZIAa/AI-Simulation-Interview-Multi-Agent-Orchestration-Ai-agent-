@@ -5,6 +5,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from ..agents import CodingComposer
+from ..analysis.runner import judge, run_source
 from ..app.context import AppContext
 from ..core.config import AppSettings
 from ..core.errors import InterviewerError
@@ -18,6 +20,13 @@ from ..core.types import ScoreDimension, SessionStatus
 from ..data.repositories.library_repo import StoredGap, StoredJob, StoredResume
 from ..data.repositories.review_repo import StoredMistake, TrendPoint
 from ..data.repositories.session_repo import GlobalStats, SessionSummary
+from ..domain.coding import (
+    CODING_LANGUAGES,
+    CodingChallenge,
+    JudgeOutcome,
+    RunOutcome,
+)
+from ..domain.company import level_expectation
 from ..domain.interview import InterviewState, TurnRecord
 from ..domain.persona import PersonaContract
 from ..domain.review import ReviewReport
@@ -32,11 +41,13 @@ from .schemas import (
     AudioDevices,
     BuildSessionBody,
     Catalog,
+    ComposeChallengeBody,
     DiagnoseBody,
     GenerateReviewBody,
     HintBody,
     IngestJobTextBody,
     IngestPathBody,
+    JudgeCodeBody,
     MistakeCounts,
     ModelOption,
     MuteBody,
@@ -45,6 +56,7 @@ from .schemas import (
     ProbeOutcome,
     ProviderOption,
     RoleOption,
+    RunCodeBody,
     ServerInfo,
     SetMasteredBody,
     StartInterviewBody,
@@ -149,6 +161,39 @@ async def engine_interrupt(request: Request) -> Ok:
 async def engine_submit_code(request: Request, body: SubmitCodeBody) -> Ok:
     await _ctx(request).engine.submit_code(body.language, body.source)
     return Ok()
+
+
+@router.post("/coding/challenge", response_model=CodingChallenge, tags=["coding"])
+async def coding_challenge(request: Request, body: ComposeChallengeBody) -> CodingChallenge:
+    ctx = _ctx(request)
+    state = ctx.engine.state
+    if state is None:
+        raise HTTPException(status_code=409, detail="没有正在进行的面试，无法出编码题")
+    composer = CodingComposer(ctx.router)
+    return await composer.compose(
+        skill=body.skill,
+        job_title=state.persona.job_title,
+        level_expectation=level_expectation(state.tier, state.level),
+        minutes=state.plan.total_ms // 60_000,
+    )
+
+
+@router.post("/coding/run", response_model=RunOutcome, tags=["coding"])
+async def coding_run(body: RunCodeBody) -> RunOutcome:
+    if body.language not in CODING_LANGUAGES:
+        raise HTTPException(status_code=400, detail=f"不支持运行 {body.language}")
+    if not body.source.strip():
+        raise HTTPException(status_code=400, detail="代码是空的")
+    return await run_source(language=body.language, source=body.source, stdin_text=body.stdin)
+
+
+@router.post("/coding/judge", response_model=JudgeOutcome, tags=["coding"])
+async def coding_judge(body: JudgeCodeBody) -> JudgeOutcome:
+    if body.language not in CODING_LANGUAGES:
+        raise HTTPException(status_code=400, detail=f"不支持运行 {body.language}")
+    if not body.cases:
+        raise HTTPException(status_code=400, detail="这道题没有用例可跑")
+    return await judge(language=body.language, source=body.source, cases=body.cases)
 
 
 @router.post("/engine/finish-early", response_model=Ok, tags=["engine"])

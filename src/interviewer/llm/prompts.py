@@ -505,3 +505,54 @@ def improvement_user_prompt(
         parts += ["", "【目标岗位要求】", jd_digest]
     parts += ["", "给出专项提升方案。"]
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# 编码题（要能自动判题，与题库的口述题分开）
+# ---------------------------------------------------------------------------
+
+CODING_COMPOSE_SYSTEM = """你出一道能被程序自动判题的编码题，风格参考牛客网：走标准输入输出。
+
+# 铁律（违反则整题作废）
+1. 程序从 **标准输入** 读数据，把结果打印到 **标准输出**。不要写成函数签名让人补全。
+2. expected 必须是该输入下**唯一确定**的输出。答案不唯一的题（如「任意一种排列」）绝对不许出。
+3. expected 只写程序该打印的内容本身，不带提示语、不带引号、不带多余空行。
+   判题按行比对并忽略行尾空格，所以每行内容必须精确。
+4. starter 里要写好读输入的骨架，并留出候选人填算法的位置，用注释标明。
+   骨架本身要能直接运行不报错（哪怕输出是错的）。
+5. reference 是完整可运行的正确解法，直接喂给用例必须全部通过。
+6. Python 和 JavaScript 两个版本的 starter 与 reference 都要给，读输入方式各自符合语言习惯
+   （Python 用 sys.stdin / input()，JavaScript 用 require('fs').readFileSync(0, 'utf8')）。
+
+# 题目要求
+- 15 分钟内能写完，考察点集中，不要出需要背模板的冷门算法。
+- statement 用 Markdown，说清背景、要求、约束范围。不要在 statement 里写输入输出格式。
+- io_format 单独说明输入格式和输出格式，逐行讲清楚。
+- cases 给 3~5 条。第一条必须是 statement 里举例的那条，最简单。
+  其余覆盖边界（最小规模、重复元素、极值），每条 note 写清这条在验什么。
+- hints 给 2~3 条循序渐进的提示，不要直接说出解法。
+
+只输出 JSON 对象：
+{"title": "...", "statement": "...", "io_format": "...",
+ "starter_python": "...", "starter_javascript": "...",
+ "reference_python": "...", "reference_javascript": "...",
+ "cases": [{"input": "...", "expected": "...", "note": "..."}],
+ "hints": ["..."]}"""
+
+
+def coding_compose_user_prompt(
+    *,
+    skill: str,
+    job_title: str,
+    level_expectation: str,
+    minutes: int,
+) -> str:
+    parts = [
+        f"【目标岗位】{job_title or '技术岗'}",
+        f"【级别口径】{level_expectation}",
+        f"【本场时长】{minutes} 分钟",
+    ]
+    if skill:
+        parts.append(f"【希望考察的方向】{skill}")
+    parts.append("出一道编码题。")
+    return "\n".join(parts)

@@ -19,6 +19,9 @@ import {
 } from "@/lib/backend";
 import type { PageId } from "@/lib/pages";
 import { DashboardView } from "@/views/dashboard";
+import { GrowthView } from "@/views/growth";
+import { MistakesView } from "@/views/mistakes";
+import { PersonaView } from "@/views/persona";
 import { PlaceholderView } from "@/views/placeholder";
 import { SettingsView } from "@/views/settings";
 
@@ -87,7 +90,10 @@ export default function App() {
       <AppShell page={page} onNavigate={setPage} connected={connected}>
         {page === "dashboard" && <DashboardView onNavigate={setPage} interrupted={interrupted} />}
         {page === "settings" && <SettingsView />}
-        {page !== "dashboard" && page !== "settings" && <PlaceholderView page={page} />}
+        {page === "mistakes" && <MistakesView onNavigate={setPage} />}
+        {page === "growth" && <GrowthView onNavigate={setPage} />}
+        {page === "persona" && <PersonaView />}
+        {page === "prepare" && <PlaceholderView page={page} />}
       </AppShell>
       <Toaster position="bottom-right" />
     </TooltipProvider>

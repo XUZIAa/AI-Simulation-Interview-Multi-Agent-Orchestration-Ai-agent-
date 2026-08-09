@@ -3083,6 +3083,11 @@
       "type": "string",
       "title": "Code Snapshot",
       "default": ""
+     },
+     "reviewable": {
+      "type": "boolean",
+      "title": "Reviewable",
+      "readOnly": true
      }
     },
     "type": "object",
@@ -3123,7 +3128,8 @@
      "live_scores",
      "coding_active",
      "code_language",
-     "code_snapshot"
+     "code_snapshot",
+     "reviewable"
     ],
     "title": "InterviewState",
     "description": "权威状态。实时模型的记忆不可信，一切以此为准，且每轮落盘。"

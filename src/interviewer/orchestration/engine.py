@@ -5,6 +5,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Coroutine
+from dataclasses import dataclass
 from typing import Any
 
 from ..agents.director import Director
@@ -50,6 +51,18 @@ _COPILOT_SILENCE = 6.5
 _NUDGE_SILENCE = 15.0
 
 
+@dataclass(slots=True)
+class _TurnCue:
+    """一轮的展示负载，随指令下行、随语音起播浮现。
+
+    导演的时间轴比耳朵快一整轮：模型三秒生成十秒音频，缓冲里常压着六到十秒。
+    决策一出就刷状态栏和提词器，用户会看到下一题、听到上一题。
+    """
+
+    question: str
+    event: DirectorDecided | None = None
+
+
 class InterviewEngine:
     """双环编排。Fast Loop 是语音链路，Slow Loop 是这里的导演与状态机。"""
 
@@ -79,6 +92,8 @@ class InterviewEngine:
         self._started_at = 0.0
         self._closing = False
         self._close_triggered = False
+        # 最后一场结束时的状态。stop 会被前端重复调用，第二次得还能拿到时长
+        self._last_finished: InterviewState | None = None
         self._turn_ready = asyncio.Event()
         self._finished = asyncio.Event()
 
@@ -87,6 +102,11 @@ class InterviewEngine:
         self._candidate_speaking = False
         self._speech_started_ms = 0
         self._interviewer_voicing = False
+        # 已经问出口的那道题。导演推进得比语音快，提词器要跟着耳朵走
+        self._voiced_question = ""
+        # 打断会清空播放队列，排队中那几轮的语音永远不会出声，展示负载要跟着作废
+        self._cue_epoch = 0
+        self._voice_open_at = 0.0
 
         self._turn_timer: asyncio.Task[None] | None = None
         self._verbosity_timer: asyncio.Task[None] | None = None
@@ -120,6 +140,9 @@ class InterviewEngine:
         self._state = state
         self._closing = False
         self._close_triggered = False
+        self._last_finished = None
+        self._voiced_question = ""
+        self._voice_open_at = 0.0
         self._finished.clear()
         self._started_at = time.monotonic()
         state.enter_phase(InterviewPhase.WARMUP)
@@ -167,7 +190,10 @@ class InterviewEngine:
 
         self._warn_audio_config(settings.audio)
         self._bus.emit(PhaseChanged(phase=state.phase, reason="面试开始"))
-        await self._client.send_directive(anchor.opening_directive(state.persona))
+        await self._client.send_directive(
+            anchor.opening_directive(state.persona),
+            cue=_TurnCue(question="请你先做一下自我介绍"),
+        )
         logger.info("面试开始 session=%s persona=%s", state.session_id, state.persona.name)
 
     async def _rollback_start(self, state: InterviewState) -> None:
@@ -225,7 +251,10 @@ class InterviewEngine:
 
     async def stop(self, *, aborted: bool = False) -> InterviewState | None:
         state = self._state
-        if state is None or self._closing:
+        if state is None:
+            # 已经收过尾，把最后那份结果原样交回去
+            return self._last_finished
+        if self._closing:
             return state
         self._closing = True
 
@@ -272,8 +301,16 @@ class InterviewEngine:
         )
 
         self._state = None
+        # 自然收尾时引擎已经自己调过一次 stop，前端随后那次会拿到空结果。
+        # 留一份最后的状态，让 stop 可以重复调用而不丢时长与可复盘判定。
+        self._last_finished = state
         self._finished.set()
-        logger.info("面试结束 session=%s 时长=%dms", state.session_id, state.elapsed_ms)
+        logger.info(
+            "面试结束 session=%s 时长=%dms 可复盘=%s",
+            state.session_id,
+            state.elapsed_ms,
+            state.reviewable,
+        )
         return state
 
     async def wait_finished(self) -> None:
@@ -335,8 +372,9 @@ class InterviewEngine:
     def on_interviewer_text(
         self, text: str, *, final: bool, started_at_ms: int = 0, duration_ms: int = 0
     ) -> None:
+        # 面试官的文本比它的声音早好几秒，逐字上屏会把下一题提前剧透出来。
+        # 整句压到语音开口那一刻再上屏，正好可以对着听
         if not final:
-            self._bus.emit(TranscriptDelta(speaker=Speaker.INTERVIEWER.value, text=text))
             return
         state = self._state
         if state is None:
@@ -349,17 +387,23 @@ class InterviewEngine:
             duration_ms=duration_ms,
             intent=current.intent if current else None,
         )
-        self._bus.emit(
-            TranscriptCommitted(
-                turn_id=turn.index,
-                speaker=Speaker.INTERVIEWER.value,
-                text=text,
-                started_at_ms=turn.started_at_ms,
-                duration_ms=turn.duration_ms,
+        self._spawn(
+            self._voice_line(
+                TranscriptCommitted(
+                    turn_id=turn.index,
+                    speaker=Speaker.INTERVIEWER.value,
+                    text=text,
+                    started_at_ms=turn.started_at_ms,
+                    duration_ms=turn.duration_ms,
+                )
             )
         )
         self._spawn(self._persist_turn(state, turn.index))
         self._spawn(self._guard_check(text))
+
+    async def _voice_line(self, line: TranscriptCommitted) -> None:
+        if await self._await_voice_open():
+            self._bus.emit(line)
 
     def on_candidate_audio(self, pcm: bytes, elapsed_ms: int) -> None:
         if self._recorder is not None:
@@ -370,13 +414,39 @@ class InterviewEngine:
             self._recorder.write_interviewer(elapsed_ms, pcm)
 
     def on_response(self, active: bool) -> None:
+        # 生成结束不等于说完，正常轮次的沉默计时由 tick 里的播放状态翻转驱动
         if active:
             self._cancel_turn_timer()
             self._cancel_silence_timer()
-        else:
+        elif not self._interviewer_voicing:
+            # 这一轮一声没出（被取消，或服务端没给音频），等不到播放结束的翻转
             self._start_silence_timer()
 
+    def on_voice_open(self, cue: object, lead_ms: int) -> None:
+        self._voice_open_at = time.monotonic() + lead_ms / 1000
+        if isinstance(cue, _TurnCue):
+            self._spawn(self._stage_cue(cue))
+
+    async def _await_voice_open(self) -> bool:
+        """等到本轮语音真正开口。返回 False 表示这一轮已经作废。"""
+        epoch = self._cue_epoch
+        delay = self._voice_open_at - time.monotonic()
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return self._state is not None and not self._closing and epoch == self._cue_epoch
+
+    async def _stage_cue(self, cue: _TurnCue) -> None:
+        if not await self._await_voice_open():
+            return
+        self._voiced_question = cue.question
+        if cue.event is not None:
+            self._bus.emit(cue.event)
+
+    def _void_staged_cues(self) -> None:
+        self._cue_epoch += 1
+
     def on_barge_in(self) -> None:
+        self._void_staged_cues()
         self._bus.emit(InterruptionFired(by_interviewer=False, reason="你打断了面试官"))
 
     def on_unauthorized_response(self) -> None:
@@ -492,6 +562,7 @@ class InterviewEngine:
         marked = state.last_candidate_turn()
         if marked is not None:
             marked.was_interrupted = True
+        self._void_staged_cues()
         await client.barge_in(directive)
         self._bus.emit(InterruptionFired(by_interviewer=True, reason=reason))
         logger.info("面试官主动打断：%s", reason)
@@ -559,6 +630,15 @@ class InterviewEngine:
         elif decision.is_personality:
             star_hint = "这是一个性格/价值观问题，语气可以缓一点，但仍要问得具体。"
 
+        # 要在 open_question 之前取：它会把当前题换成新的
+        previous = state.current_question
+        switched_topic = (
+            decision.intent is TurnIntent.ASK_NEW
+            and previous is not None
+            and bool(decision.domain)
+            and decision.domain != previous.domain
+        )
+
         state.open_question(
             intent=decision.intent,
             brief=decision.brief,
@@ -568,22 +648,23 @@ class InterviewEngine:
             bank_question_id=decision.chosen_question.id if decision.chosen_question else None,
             is_personality=decision.is_personality,
         )
-        self._bus.emit(
-            DirectorDecided(
-                intent=decision.intent,
-                brief=decision.brief,
-                target_skill=decision.target_skill,
-                follow_up_depth=state.follow_up_depth,
-            )
-        )
-
         await self._maybe_reanchor(state, client, trigger="周期重锚")
         await client.send_directive(
             anchor.directive_message(
                 intent=decision.intent,
                 brief=decision.brief,
                 star_hint=star_hint,
-            )
+                switched_topic=switched_topic,
+            ),
+            cue=_TurnCue(
+                question=decision.brief,
+                event=DirectorDecided(
+                    intent=decision.intent,
+                    brief=decision.brief,
+                    target_skill=decision.target_skill,
+                    follow_up_depth=state.follow_up_depth,
+                ),
+            ),
         )
 
         if answer:
@@ -697,6 +778,7 @@ class InterviewEngine:
         repaired = False
         with contextlib.suppress(Exception):
             await client.cancel_current_response()
+            self._void_staged_cues()
             await client.reanchor(anchor.build_instructions(state))
             await client.send_directive(repair_directive(verdict, state.persona))
             state.note_reanchor()
@@ -733,8 +815,8 @@ class InterviewEngine:
         state = self._state
         if state is None:
             return
-        current = state.current_question
-        question = (current.spoken_text or current.brief) if current else ""
+        # 用已经问出口的那道题：导演可能已经推进到下一题，而候选人还在答这一题
+        question = self._voiced_question
         partial = " ".join(self._pending_answer).strip()
         payload = await self._copilot.hint(
             question=question,
@@ -787,6 +869,7 @@ class InterviewEngine:
         if client is None:
             return
         await client.cancel_current_response()
+        self._void_staged_cues()
         self._bus.emit(InterruptionFired(by_interviewer=False, reason="你打断了面试官"))
 
     async def finish_early(self) -> None:
@@ -834,6 +917,12 @@ class InterviewEngine:
                 if speaking != self._interviewer_voicing:
                     self._interviewer_voicing = speaking
                     self._bus.emit(InterviewerSpeaking(speaking=speaking))
+                    # 缓冲里压着六到十秒，从生成完起算沉默会在用户还在听题时
+                    # 就弹提词、还催一句。要从真的说完那一刻算
+                    if speaking:
+                        self._cancel_silence_timer()
+                    else:
+                        self._start_silence_timer()
             # 只触发一次：tick 每 100ms 一跳，反复置位会排出几十次多余的导演调用
             if not self._close_triggered and state.must_close() and state.phase is not InterviewPhase.CLOSING:
                 self._close_triggered = True

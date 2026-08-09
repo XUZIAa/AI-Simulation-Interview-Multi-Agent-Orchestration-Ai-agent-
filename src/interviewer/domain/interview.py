@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 from ..core.types import (
     MAX_DEPTH,
@@ -251,6 +251,9 @@ class InterviewState(BaseModel):
     def remaining_ms(self) -> int:
         return max(0, self.plan.total_ms - self.elapsed_ms)
 
+    # 复盘页要靠它决定是出报告还是出「时长太短」，必须跟着状态过网络边界。
+    # 只挂 @property 的话 model_dump 拿不到，前端读成 undefined，每场都判过短
+    @computed_field
     @property
     def reviewable(self) -> bool:
         return self.elapsed_ms >= MIN_REVIEWABLE_MS

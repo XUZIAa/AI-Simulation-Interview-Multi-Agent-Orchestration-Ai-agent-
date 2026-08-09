@@ -113,7 +113,7 @@ export function ReviewView({ sessionId, autoGenerate, onBack }: Props) {
           setPhase("ready");
           return;
         }
-        const state = await api.get<{ reviewable: boolean } | null>(
+        const state = await api.get<Schemas["InterviewState"] | null>(
           `/sessions/${sessionId}/state`,
         );
         if (!state) {

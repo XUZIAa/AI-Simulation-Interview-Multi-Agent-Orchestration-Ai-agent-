@@ -9,6 +9,12 @@
 
 **[下载最新版本](https://github.com/XUZIAa/AI-Simulation-Interview-Multi-Agent-Orchestration-Ai-agent-/releases)** · Windows 10/11 64 位
 
+> **刚上线的版本，还请多包容。**
+>
+> 这是第一个公开发布的版本，主要流程都跑通了，但难免还有 bug，也有一些体验上不够顺手的小问题。
+> 碰到了欢迎提 [Issue](https://github.com/XUZIAa/AI-Simulation-Interview-Multi-Agent-Orchestration-Ai-agent-/issues)，
+> 或者直接发邮件到 **pursue_everything@163.com**。说清楚在哪一步、出了什么现象就行，我会一个个改。
+
 ---
 
 

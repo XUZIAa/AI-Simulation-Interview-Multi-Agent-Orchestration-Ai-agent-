@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type MeterHandle, type OrbHandle, LevelMeter, VoiceOrb } from "@/components/voice-orb";
-import { type InterviewState, api, onEvent } from "@/lib/backend";
+import { type InterviewState, type Schemas, api, onEvent } from "@/lib/backend";
 import type { StarProgress } from "@/lib/event-types";
 import { INTERVIEW_PHASE, TURN_INTENT, labelOf } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -89,10 +89,15 @@ export function RoomView({ state, onFinished, onAbort }: Props) {
       } catch {
         // 连接中断也算结束，交给收尾流程判断能不能复盘
       }
-      const result = await api
-        .post<{ session_id: number | null; reviewable: boolean }>("/engine/stop", {})
-        .catch(() => ({ session_id: state.session_id, reviewable: false }));
-      onFinished(result.session_id ?? state.session_id, result.reviewable);
+      // 收尾失败要如实报错。以前这里兜成 reviewable:false，
+      // 用户看到的却是「不足 5 分钟」，把接口故障说成了时长不够
+      try {
+        const result = await api.post<Schemas["StopResult"]>("/engine/stop", {});
+        onFinished(result.session_id ?? state.session_id, result.reviewable);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "面试收尾失败");
+        onAbort();
+      }
     })();
   }, [state.session_id, onFinished, onAbort]);
 

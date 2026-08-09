@@ -84,7 +84,9 @@ class Director(Agent):
 
         brief = trim(raw.brief, 150)
         if chosen is not None:
-            brief = trim(chosen.brief_for_director(), 200)
+            # 下发用不含 jd_ref 的版本：JD 原文写法是「熟悉 XXX」，
+            # 直接给语音会被当成候选人的自述念出来
+            brief = trim(chosen.brief_for_voice(), 200)
         if not brief:
             raise ProviderResponseError("导演未给出可执行的 brief")
 

@@ -57,12 +57,23 @@ class BankQuestion(BaseModel):
     must_ask: bool = False
 
     def brief_for_director(self) -> str:
+        """给导演选题时看的，带上关联出处便于判断该不该问这道。
+
+        不要直接下发给语音：jd_ref 存的是 JD 原文，写法通常是「熟悉 XXX」，
+        面试官会把它当成候选人的自述念出来。
+        """
         parts = [self.text]
         if self.project_ref:
             parts.append(f"（关联他简历里的「{self.project_ref}」）")
         if self.jd_ref:
             parts.append(f"（对应 JD 要求：{self.jd_ref}）")
         return "".join(parts)
+
+    def brief_for_voice(self) -> str:
+        """下发给语音的版本。只留题面，附带能安全说出口的项目名。"""
+        if self.project_ref:
+            return f"{self.text}（这道题针对他简历里的「{self.project_ref}」，可以点名这个项目）"
+        return self.text
 
     def one_line(self) -> str:
         return f"[{self.id}] D{self.depth} {self.domain}/{self.skill}｜{self.text[:60]}"

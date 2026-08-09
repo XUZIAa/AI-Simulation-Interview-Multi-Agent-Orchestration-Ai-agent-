@@ -112,9 +112,19 @@ def assistant_note(text: str) -> dict[str, Any]:
     }
 
 
-def response_create(*, audio: bool = True) -> dict[str, Any]:
+def response_create(*, audio: bool = True, instructions: str = "") -> dict[str, Any]:
+    """请求生成一次回复。
+
+    instructions 只作用于这一次响应，优先级高于会话历史里的任何消息项。
+    导演指令必须走这里：仅作为 user 项注入时，它和候选人的发言同级，
+    模型会按自己的话题惯性继续问，无视换题要求。
+    注意它整体覆盖 session 的 instructions，所以人设要一并带上。
+    """
     modalities = ["text", "audio"] if audio else ["text"]
-    return {"type": RESPONSE_CREATE, "response": {"modalities": modalities}}
+    response: dict[str, Any] = {"modalities": modalities}
+    if instructions:
+        response["instructions"] = instructions
+    return {"type": RESPONSE_CREATE, "response": response}
 
 
 def response_cancel() -> dict[str, Any]:

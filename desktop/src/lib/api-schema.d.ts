@@ -1454,6 +1454,8 @@ export interface components {
              * @default
              */
             code_snapshot: string;
+            /** Reviewable */
+            readonly reviewable: boolean;
         };
         /** JobDescription */
         JobDescription: {

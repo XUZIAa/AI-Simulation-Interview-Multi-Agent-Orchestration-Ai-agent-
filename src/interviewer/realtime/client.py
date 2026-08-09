@@ -27,6 +27,18 @@ _STATS_INTERVAL = 5.0
 _BARGE_IN_GRACE_MS = 1000  # 面试官开口后的免打断窗口
 _UNHANDLED_LOG_LIMIT = 3  # 同一种未处理事件最多记这么多次
 
+# 只锁定「问什么」。上一版写成「只执行这条、无视其他」，模型连候选人刚说的话
+# 都不接了；改成「答得好就先认一句」又过了头，每轮都变成「谢谢分享，听起来你…」。
+# 真人对好答案的反应就是接着问，台阶只在他卡住时才给。
+_TURN_HEADER = (
+    "【本轮指派】\n"
+    "下面这条决定你这一轮**问什么**，以它为准，不要继续追问上一个话题。\n"
+    "默认直接问，一个字的铺垫都不要加。他答得好也不要夸、不要认可、不要说「谢谢分享」"
+    "或「听起来你…」——真人面试官当场不给反馈，接着问下一个才是最自然的反应。\n"
+    "只有他答不出、说不知道、明显卡住时，才先给一句短台阶（「没关系」「那这个先跳过」），"
+    "再按指派往下走，不要追着同一个问题重复问。"
+)
+
 
 @dataclass
 class _LinkStats:
@@ -76,6 +88,8 @@ class RealtimeSink(Protocol):
     def on_interviewer_audio(self, pcm: bytes, elapsed_ms: int) -> None: ...
 
     def on_response(self, active: bool) -> None: ...
+
+    def on_voice_open(self, cue: object, lead_ms: int) -> None: ...
 
     def on_barge_in(self) -> None: ...
 
@@ -148,6 +162,9 @@ class RealtimeClient:
         self._response_chars = 0
         self._response_bytes = 0
         self._pending_speech = False
+        # 本轮的展示负载。内容由编排层定义，这里只负责搬到音频起播的时刻
+        self._pending_cue: object | None = None
+        self._active_cue: object | None = None
         self._unhandled: dict[str, int] = {}
 
     # ---------- 状态 ----------
@@ -241,15 +258,35 @@ class RealtimeClient:
         self._instructions = instructions
         await self._send(self._build_session_update())
 
-    async def send_directive(self, text: str, *, request_response: bool = True) -> None:
-        """下发导演指令。只有这条路径能授予发言权。"""
+    async def send_directive(
+        self, text: str, *, request_response: bool = True, cue: object | None = None
+    ) -> None:
+        """下发导演指令。只有这条路径能授予发言权。
+
+        cue 是这轮要给用户看的东西。模型三秒能生成十秒的音频，缓冲里常压着
+        六到十秒还没播出去，决策时刻就亮出来会比耳朵快一整轮。把它挂到本轮
+        音频上，等真正开口再浮现。
+        """
+        self._pending_cue = cue
         # 导演由「转写完成」触发，而输入收尾由「语音结束」触发，两者先后不保证。
         # 若带着未提交的音频请求响应，服务端会搁置这次请求去等输入收尾，面试官就哑了。
         await self._commit_input()
+        # 仍然写入会话项，让指令留在上下文里可被回溯
         await self._send(proto.system_note(text))
         if request_response:
             self._authorized = True
-            await self._send(proto.response_create())
+            # 真正的约束力在 per-response instructions：只作为 user 项时它与
+            # 候选人发言同级，模型会顺着自己的话题继续问，导演换了题也不跟。
+            # 这里整体覆盖会话指令，所以人设必须一起重灌。
+            payload = self._compose_turn_instructions(text)
+            logger.info("下发本轮指令 %d 字（含人设锚点）", len(payload))
+            await self._send(proto.response_create(instructions=payload))
+
+    def _compose_turn_instructions(self, directive: str) -> str:
+        anchor = self._instructions.strip()
+        if not anchor:
+            return directive
+        return f"{anchor}\n\n{_TURN_HEADER}\n{directive}"
 
     async def _commit_input(self) -> None:
         """提交本轮输入音频。没有待提交的语音时什么都不做——空缓冲区提交会被服务端拒绝。"""
@@ -279,6 +316,8 @@ class RealtimeClient:
         await self._send(proto.response_cancel())
         self._responding = False
         self._response_id = None
+        # 这轮已经不会出声了，挂着的展示负载不能再浮到界面上
+        self._active_cue = None
         self._sink.on_response(False)
 
     async def _send(self, event: dict[str, Any]) -> None:
@@ -457,6 +496,7 @@ class RealtimeClient:
                 return
             self._authorized = False
             self._responding = True
+            self._active_cue, self._pending_cue = self._pending_cue, None
             self._response_id = (event.get("response") or {}).get("id")
             self._response_start_ms = self._clock()
             self._response_chunks = 0
@@ -472,6 +512,10 @@ class RealtimeClient:
             chunk = event.get("delta")
             if chunk and self._responding:
                 pcm = base64.b64decode(chunk)
+                if self._response_chunks == 0:
+                    # 本段排在队列尾部，队里剩多少就是它开口前还要等多久
+                    cue, self._active_cue = self._active_cue, None
+                    self._sink.on_voice_open(cue, self._player.pending_ms)
                 self._stats.audio_out += 1
                 self._response_chunks += 1
                 self._response_bytes += len(pcm)

@@ -121,6 +121,9 @@ def plan_turn(state: InterviewState, settings: OrchestrationSettings) -> TurnPla
         prefer = state.current_domain or None
 
     intents = list(_PHASE_INTENTS[state.phase])
+    if state.phase is InterviewPhase.WARMUP and current is not None and has_answer:
+        # 暖场首答只允许顺着候选人的自我介绍追问，不能跳到题库的预设问题。
+        intents = [TurnIntent.FOLLOW_UP]
 
     if not follow_up_allowed:
         intents = [i for i in intents if i not in _PROBE_INTENTS]

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -289,6 +290,12 @@ export function SettingsView({ onOpenAbout }: { onOpenAbout: () => void }) {
             {catalog.roles.map((role) => {
               const binding = settings.roles[role.key] ?? { provider: "deepseek", model: "" };
               const provider = catalog.chat.find((p) => p.key === binding.provider);
+              // openai_compat 的模型列表来自 custom_chat（用户填写），其余来自 catalog
+              const modelOptions =
+                binding.provider === "openai_compat" && settings.custom_chat.models.length > 0
+                  ? settings.custom_chat.models
+                  : provider?.models ?? [];
+              const currentModel = binding.model || (provider?.default_model ?? "");
               const id = `role:${role.key}`;
               const state = probe[id];
               return (
@@ -320,7 +327,7 @@ export function SettingsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                       </SelectContent>
                     </Select>
                     <Select
-                      value={binding.model || (provider?.default_model ?? "")}
+                      value={modelOptions.includes(currentModel) ? currentModel : (modelOptions[0] ?? "")}
                       onValueChange={(v) =>
                         setSettings({
                           ...settings,
@@ -335,7 +342,7 @@ export function SettingsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {(provider?.models ?? []).map((m) => (
+                        {modelOptions.map((m) => (
                           <SelectItem key={m} value={m}>
                             {m}
                           </SelectItem>
@@ -360,6 +367,53 @@ export function SettingsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="text-muted-foreground size-4" />
+              中转接入点配置
+            </CardTitle>
+            <CardDescription>
+              填入任意 OpenAI 兼容中转的接入地址和模型列表。保存后「OpenAI 兼容中转」选项卡的模型将使用这里的配置
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Field label="接入地址（base_url）">
+              <Input
+                placeholder="https://your-relay.com/v1"
+                value={settings.custom_chat.base_url ?? ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    custom_chat: { ...settings.custom_chat, base_url: e.target.value },
+                  })
+                }
+              />
+            </Field>
+            <Field label="模型列表（每行一个，如 gpt-4o）">
+              <Textarea
+                placeholder="gpt-4o&#10;gpt-4o-mini&#10;claude-sonnet-4-6"
+                rows={4}
+                className="resize-none font-mono text-xs"
+                value={(settings.custom_chat.models ?? []).join("\n")}
+                onChange={(e) => {
+                  const lines = e.target.value
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter(Boolean);
+                  setSettings({
+                    ...settings,
+                    custom_chat: { ...settings.custom_chat, models: lines },
+                  });
+                }}
+              />
+            </Field>
+            <p className="text-muted-foreground text-xs">
+              若模型列表为空，「OpenAI 兼容中转」将使用默认模型清单
+            </p>
           </CardContent>
         </Card>
 

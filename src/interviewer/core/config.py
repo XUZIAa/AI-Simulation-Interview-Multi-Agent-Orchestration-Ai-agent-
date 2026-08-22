@@ -74,7 +74,7 @@ class RealtimeSettings(BaseModel):
 class OrchestrationSettings(BaseModel):
     reanchor_every_turns: int = Field(default=4, ge=1, le=20)
     max_follow_up_depth: int = Field(default=3, ge=1, le=6)
-    director_timeout_ms: int = Field(default=9000, ge=2000, le=30000)
+    director_timeout_ms: int = Field(default=20000, ge=2000, le=60000)
     guard_timeout_ms: int = Field(default=2500, ge=800, le=10000)
     interrupt_budget_per_phase: int = Field(default=2, ge=0, le=10)
     verbose_seconds_before_interrupt: float = Field(default=42.0, ge=10.0, le=180.0)
@@ -114,6 +114,15 @@ class AppSettings(BaseModel):
             return catalog.model_copy(
                 update={
                     "base_url": self.custom_chat.base_url or catalog.base_url,
+                    "models": tuple(self.custom_chat.models),
+                }
+            )
+        if binding.provider == "openai_compat":
+            if not self.custom_chat.base_url:
+                raise ConfigError("请先在设置中填写自定义 OpenAI 兼容中转的接入地址")
+            return catalog.model_copy(
+                update={
+                    "base_url": self.custom_chat.base_url,
                     "models": tuple(self.custom_chat.models),
                 }
             )

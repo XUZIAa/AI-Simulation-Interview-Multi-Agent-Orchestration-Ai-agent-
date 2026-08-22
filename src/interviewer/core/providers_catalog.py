@@ -138,6 +138,14 @@ CHAT_PROVIDERS: dict[str, ChatProvider] = {
             models=(),
             console_url="",
         ),
+        ChatProvider(
+            key="openai_compat",
+            label="自定义 OpenAI 兼容中转",
+            base_url="",
+            default_model="",
+            models=(),
+            console_url="",
+        ),
     )
 }
 
@@ -221,10 +229,9 @@ class RoleBinding(BaseModel):
 
 DEFAULT_ROLE_BINDINGS: dict[str, RoleBinding] = {
     "director": RoleBinding(provider="deepseek", model="deepseek-chat"),
-    # 分析师全是结构化输出，推理模型在这个位置不可靠：思维链吃掉配额、JSON 常落进思维链字段
     "analyst": RoleBinding(provider="deepseek", model="deepseek-chat"),
-    "guard": RoleBinding(provider="dashscope", model="qwen-flash"),
-    "assist": RoleBinding(provider="dashscope", model="qwen-flash"),
+    "guard": RoleBinding(provider="deepseek", model="deepseek-chat"),
+    "assist": RoleBinding(provider="deepseek", model="deepseek-chat"),
 }
 
 ROLE_LABELS: dict[str, str] = {

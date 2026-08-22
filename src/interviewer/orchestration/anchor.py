@@ -41,7 +41,10 @@ _WORKFLOW = f"""【你的工作方式｜必须严格遵守】
 - 同一个方向里接着问，不加过渡，直接问。"""
 
 _PHASE_GUIDANCE: dict[InterviewPhase, str] = {
-    InterviewPhase.WARMUP: "现在是开场环节。让候选人自我介绍，从他的介绍里找可深挖的点，不要急着上难度。",
+    InterviewPhase.WARMUP: (
+        "现在是开场环节。第一问已经请候选人自我介绍；只从他实际说过的经历、职责或项目中选一个具体点延伸。"
+        "不得跳到简历、岗位要求或题库中的其他点，也不要急着上难度。"
+    ),
     InterviewPhase.RESUME_DEEP_DIVE: "现在是简历深挖环节。围绕他写的项目问，重点确认哪些是他本人做的、量化产出是什么。",
     InterviewPhase.TECH_DEPTH: "现在是技术深度环节。往原理层追，关心他为什么这样选、有没有替代方案、边界条件如何处理。",
     InterviewPhase.BEHAVIORAL: "现在是行为面试环节。考察真实经历里的判断与协作。回答缺少要素时按指令引导他补全。",
@@ -87,16 +90,13 @@ def build_instructions(state: InterviewState) -> str:
 
 
 def opening_directive(persona: PersonaContract) -> str:
-    """开场固定为「打招呼 + 请自我介绍」，不交给导演决定。
-
-    真实面试第一步几乎总是自我介绍；固定下来还能省掉一次导演调用，开场更快。
-    """
+    """开场统一邀请候选人自我介绍，后续只从其自述延伸。"""
     return (
         f"{DIRECTIVE_TAG}\n"
         "动作：开场\n"
-        f"内容：{persona.opening()} 接着请他先做一个简短的自我介绍。\n"
-        "要求：先用你的人设语气打个招呼，再请他自我介绍。合起来两句话以内。"
-        "不要立刻追加技术问题，不要讲面试流程安排。"
+        f"内容：{persona.opening()}\n"
+        "要求：一句或两句内自然打招呼并请他自我介绍，不预设项目、技术、业务产出或考察方向。"
+        "不要讲流程，不要追加其他问题；等候选人介绍完，再从他实际说过的内容里选一个点追问。"
     )
 
 

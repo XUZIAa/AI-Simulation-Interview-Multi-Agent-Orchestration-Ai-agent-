@@ -19,6 +19,9 @@ dist/
 .pytest_cache/
 
 # 本地数据与密钥（运行时写入 %LOCALAPPDATA%/Interviewer，不应入库）
+.env
+.env.*
+!.env.example
 *.db
 *.db-wal
 *.db-shm
@@ -28,6 +31,15 @@ config.json.broken
 *.log
 recordings/
 exports/
+# 个人资料、导入文件与发布签名材料
+resumes/
+uploads/
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+*.mobileprovision
 
 # 编辑器
 .vscode/
@@ -84,3 +96,4 @@ tools/audit-report.txt
 
 # 个人素材
 自己找的新背景图/
+项目技术总结.md

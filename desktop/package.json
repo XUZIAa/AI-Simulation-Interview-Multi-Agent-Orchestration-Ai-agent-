@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "gen:types": "cd .. && uv run python tools/gen_frontend_types.py",
     "typecheck": "tsc --noEmit",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "//sidecar": "把 Python 后端打成 Tauri sidecar，产物落在仓库根 dist/interviewer-backend/。",
+    "build:sidecar": "cd .. && .venv\\\\Scripts\\\\python.exe -m PyInstaller --noconfirm --clean interviewer-backend.spec",
+    "bundle": "npm run build:sidecar && npm run tauri build"
   },
   "dependencies": {
     "@codemirror/lang-java": "^6.0.2",

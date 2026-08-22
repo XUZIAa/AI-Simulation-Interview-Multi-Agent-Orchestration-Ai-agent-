@@ -235,6 +235,10 @@ class InterviewState(BaseModel):
     code_language: str = "python"
     code_snapshot: str = ""
 
+    # 仅作导演评分的「最近几轮同技能点评分」参考，不落盘、不参与序列化，
+    # 进程重启即清空——持久化里没这个字段，老数据库无需迁移
+    recent_quality_log: list[dict] = Field(default_factory=list, exclude=True)
+
     # ---------- 查询 ----------
 
     @property
@@ -392,7 +396,25 @@ class InterviewState(BaseModel):
         action = state.observe(quality)
         question.depth_action = action
         self.last_depth_action = action
+        # 仅用于导演评分时做前后一致性参照：同技能点最近 5 次评分
+        # 内存字段，不落盘，进程退出即丢
+        if quality is not None:
+            self.recent_quality_log.append(
+                {"skill": question.target_skill, "score": quality, "turn": self.turn_index}
+            )
+            # 限长避免越聊越长，单技能点超过 5 条就裁掉最旧
+            if len(self.recent_quality_log) > 5:
+                self.recent_quality_log = self.recent_quality_log[-5:]
         return action
+
+    def recent_skill_scores(self, skill: str, *, limit: int = 3) -> list[tuple[str, float]]:
+        """返回与该技能点（或相邻同 domain）相关的最近评分，供导演对照。"""
+        key = skill.strip().lower()
+        # 严格匹配优先；都没有再放宽到整个 log 取最近 3 条
+        matched = [item for item in self.recent_quality_log if item["skill"].lower() == key]
+        if matched:
+            return [(item["skill"], item["score"]) for item in matched[-limit:]]
+        return [(item["skill"], item["score"]) for item in self.recent_quality_log[-limit:]]
 
     def append_turn(
         self,

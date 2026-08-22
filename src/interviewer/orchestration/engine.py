@@ -190,6 +190,12 @@ class InterviewEngine:
 
         self._warn_audio_config(settings.audio)
         self._bus.emit(PhaseChanged(phase=state.phase, reason="面试开始"))
+        state.open_question(
+            intent=TurnIntent.ASK_NEW,
+            brief="请候选人做一到两分钟的自我介绍",
+            target_skill="",
+            domain="候选人经历",
+        )
         await self._client.send_directive(
             anchor.opening_directive(state.persona),
             cue=_TurnCue(question="请你先做一下自我介绍"),
@@ -582,6 +588,10 @@ class InterviewEngine:
                     await self._run_turn()
             except asyncio.CancelledError:
                 raise
+            except TimeoutError:
+                # 中转链路偶发变慢时，已保留候选人答案；自动重锚并继续等待下一次推进。
+                logger.warning("导演决策超时，自动恢复本轮")
+                await self._recover_turn()
             except InterviewerError as exc:
                 logger.warning("回合推进失败: %s", exc)
                 self._bus.emit(EngineFailure(user_message=exc.user_message, detail=exc.detail))

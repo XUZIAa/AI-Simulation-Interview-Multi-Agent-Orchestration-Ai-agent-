@@ -48,6 +48,23 @@ class Director(Agent):
         if not plan.allowed_intents:
             raise ProviderResponseError("没有可用的 intent，状态机配置错误")
 
+        # expected_signals 取自当前已问的这道题（关联回题库拿期望要点）。
+        # 没有关联则降级：尝试 plan 候选里下一题，这道题多半就是要考的。
+        current = state.current_question
+        expected_signals: list[str] = []
+        if current is not None and current.bank_question_id is not None:
+            bank_q = state.bank.by_id(current.bank_question_id)
+            if bank_q is not None:
+                expected_signals = list(bank_q.expected_signals)
+        if not expected_signals and plan.candidates:
+            expected_signals = list(plan.candidates[0].expected_signals)
+
+        # 历史评分：用当前技能点（追问时）或下一题技能点（换题时）
+        skill_for_history = current.target_skill if current else ""
+        if not skill_for_history and plan.candidates:
+            skill_for_history = plan.candidates[0].skill
+        skill_score_history = state.recent_skill_scores(skill_for_history, limit=3)
+
         raw = await self.client.structured(
             [
                 system(prompts.DIRECTOR_SYSTEM),
@@ -63,12 +80,14 @@ class Director(Agent):
                         interrupt_allowed=plan.interrupt_allowed,
                         follow_up_allowed=plan.follow_up_allowed,
                         force_personality=plan.force_personality,
+                        expected_signals=expected_signals or None,
+                        skill_score_history=skill_score_history or None,
                     )
                 ),
             ],
             _DirectorRaw,
             temperature=0.5,
-            max_tokens=1200,
+            max_tokens=1400,
         )
 
         intent = _resolve_intent(raw.intent, plan)

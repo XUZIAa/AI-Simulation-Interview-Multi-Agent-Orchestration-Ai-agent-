@@ -245,7 +245,7 @@ class PersonaContract(BaseModel):
     def opening(self) -> str:
         if self.opening_line:
             return self.opening_line
-        return _DEFAULT_OPENINGS.get(self.archetype, "你好，我们开始吧。先花两分钟介绍一下你自己。")
+        return _DEFAULT_OPENINGS.get(self.archetype, "你好，先用一两分钟介绍一下你自己，重点说说最近的经历。")
 
     def interrupt_threshold_seconds(self, base: float) -> float:
         """打断倾向越高，容忍的啰嗦时长越短。"""
@@ -254,14 +254,9 @@ class PersonaContract(BaseModel):
 
 
 _DEFAULT_OPENINGS: dict[PersonaArchetype, str] = {
-    PersonaArchetype.IRRITABLE_CTO: "时间有限，直接开始。三十秒讲清楚你最近做的项目，别念简历。",
-    PersonaArchetype.GENTLE_HR: "你好，很高兴今天能和你聊聊。先别紧张，简单介绍一下自己吧。",
-    PersonaArchetype.PICKY_BIZ_LEADER: "来，先说说你上一段业务里，你到底负责哪一块，产出是什么。",
-    PersonaArchetype.FOREIGN_CORP: "Hi，先做个 self introduction，一分钟左右，focus 在你的 ownership。",
-    PersonaArchetype.ACADEMIC_PURIST: "开始之前，先讲讲你简历上最有技术含量的那个模块，讲原理。",
-    PersonaArchetype.SILENT_OBSERVER: "请开始你的自我介绍。",
-    PersonaArchetype.RAPID_FIRE: "我们节奏会比较快。先一句话说你是谁、做过什么最难的东西。",
-    PersonaArchetype.STRUCTURED: "你好，我先介绍一下今天的流程：先请你自我介绍，然后我们聊项目和技术，最后留时间给你提问。开始吧。",
+    archetype: "你好，先用一两分钟介绍一下你自己，重点说说最近的经历。"
+    for archetype in PersonaArchetype
+    if archetype is not PersonaArchetype.CUSTOM
 }
 
 

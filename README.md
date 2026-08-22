@@ -223,7 +223,6 @@ npm run tauri build
 cd desktop && npm run gen:types
 ```
 
-
 ## 隐私
 
 - 所有数据存本地 SQLite（`%LOCALAPPDATA%/Interviewer/`），不上传
@@ -243,6 +242,8 @@ cd desktop && npm run gen:types
 希望用过的朋友愿意分享自己的面经，用来一起加强这个 agent。你帮助我，我帮助你，最后我们都能拿到一个 offer。
 
 有想法、bug 可以邮件联系：pursue_everything@163.com
+
+### Linux.do 社区	本项目获社区认可与支持。	linux.do
 
 ## 许可
 
